@@ -2,7 +2,7 @@ const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
-const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 3000);
+const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 2200);
 const PLAYLIST_ROLES = [
   "opener",
   "origin",
@@ -16,11 +16,9 @@ const PLAYLIST_ROLES = [
 const EPISODE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "angle", "intro", "tracks"],
+  required: ["title", "tracks"],
   properties: {
     title: { type: "string" },
-    angle: { type: "string" },
-    intro: { type: "string" },
     tracks: {
       type: "array",
       minItems: 8,
@@ -28,12 +26,11 @@ const EPISODE_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["role", "artist", "title", "reason", "chronicle"],
+        required: ["role", "artist", "title", "chronicle"],
         properties: {
           role: { type: "string", enum: PLAYLIST_ROLES },
           artist: { type: "string" },
           title: { type: "string" },
-          reason: { type: "string" },
           chronicle: { type: "string" },
         },
       },
@@ -224,9 +221,8 @@ Le titre choisi n’est pas forcément le sujet central.
 Il sert de premier signal : à toi d’en tirer le parcours humain le plus intéressant.
 
 L’émission doit contenir :
-- un angle éditorial humain fort ;
 - une playlist de 8 titres ;
-- une longue chronique avant chaque titre ;
+- une chronique courte avant chaque titre ;
 - chaque chronique doit apprendre quelque chose de concret ;
 - chaque chronique doit apporter des informations nouvelles, sans répéter une autre chronique.
 
@@ -274,11 +270,9 @@ Chaque titre doit jouer un rôle précis dans le parcours, dans cet ordre exact 
 8. "closing statement" : ferme l’émission avec une idée forte, pas seulement avec un morceau calme.
 
 Le champ "role" de chaque piste doit reprendre exactement l’un de ces 8 rôles, dans cet ordre.
-Le champ "reason" doit expliquer pourquoi ce titre remplit ce rôle précis dans l’épisode.
-
 Règles pour les chroniques :
 Chaque chronique doit être assez dense pour être utile, mais assez courte pour une émission fluide.
-Objectif MVP privé : 70 à 100 mots par chronique.
+Objectif MVP privé : 35 à 55 mots par chronique.
 
 Chaque chronique doit inclure au moins 3 catégories différentes parmi :
 - contexte de sortie : date, album, moment de carrière ;
@@ -326,15 +320,12 @@ N’ajoute aucun commentaire, aucun markdown, aucun texte hors JSON.
 Schéma :
 {
   "title": "string",
-  "angle": "string",
-  "intro": "string",
   "tracks": [
     {
       "role": "opener",
       "artist": "string",
       "title": "string",
-      "reason": "pourquoi ce titre appartient à l’émission",
-      "chronicle": "chronique orale française dense, 70 à 100 mots"
+      "chronicle": "chronique orale française dense, 35 à 55 mots"
     }
   ]
 }
@@ -388,8 +379,6 @@ function isValidEpisode(episode) {
   return Boolean(
     episode &&
       typeof episode.title === "string" &&
-      typeof episode.angle === "string" &&
-      typeof episode.intro === "string" &&
       Array.isArray(episode.tracks) &&
       episode.tracks.length === 8 &&
       episode.tracks.every(
@@ -398,15 +387,11 @@ function isValidEpisode(episode) {
           typeof track.title === "string" &&
           typeof track.chronicle === "string" &&
           typeof track.role === "string" &&
-          typeof track.reason === "string" &&
           cleanText(episode.title) &&
-          cleanText(episode.angle) &&
-          cleanText(episode.intro) &&
           PLAYLIST_ROLES.includes(track.role) &&
           cleanText(track.artist) &&
           cleanText(track.title) &&
-          cleanText(track.chronicle) &&
-          cleanText(track.reason),
+          cleanText(track.chronicle),
       ),
   );
 }

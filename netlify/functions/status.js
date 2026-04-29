@@ -24,7 +24,7 @@ exports.handler = async (event) => {
     aiProvider: hasClaude ? "claude" : hasOpenAi ? "openai" : "local",
     claudeConfigured: hasClaude,
     claudeModel: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5",
-    aiMaxTokens: Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 3000),
+    aiMaxTokens: Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 2200),
     voiceProvider: process.env.GOOGLE_TTS_API_KEY ? "google-tts" : "browser",
     strictAi: process.env.RADIO_CHARLIE_STRICT_AI === "true",
     freeMode: process.env.RADIO_CHARLIE_FREE_MODE === "true",
