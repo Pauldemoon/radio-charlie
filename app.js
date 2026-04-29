@@ -4,12 +4,7 @@ const IOS_AUDIO_UNLOCK_URL =
 const FALLBACK_COVER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Crect width='600' height='600' fill='%23141312'/%3E%3Ccircle cx='300' cy='300' r='190' fill='%23d8b36a' fill-opacity='.16'/%3E%3Ccircle cx='300' cy='300' r='78' fill='%23d8b36a' fill-opacity='.42'/%3E%3C/svg%3E";
 
-const loadingMessages = [
-  "Charlie prépare l’émission…",
-  "Recherche des morceaux…",
-  "Écriture des chroniques…",
-  "Sélection des extraits…",
-];
+const LOADING_MESSAGE = "Création du podcast en cours…";
 
 const els = {
   homeScreen: document.querySelector("#home-screen"),
@@ -56,7 +51,6 @@ const state = {
   runId: 0,
   searchId: 0,
   searchTimer: 0,
-  loadingTimer: 0,
   playback: null,
   playbackLabel: "",
   isPaused: false,
@@ -195,7 +189,6 @@ async function startEpisode(seedTrack) {
     if (!isCurrentRun(runId)) return;
 
     preloadSpeech(getTrackChronicle(episode.tracks[0])).catch(() => {});
-    setLoadingMessage("Sélection des extraits…");
     const playableTracks = await enrichWithDeezer(episode.tracks);
 
     if (!isCurrentRun(runId)) return;
@@ -206,12 +199,10 @@ async function startEpisode(seedTrack) {
 
     state.episode = episode;
     state.playableTracks = playableTracks;
-    stopLoadingMessages();
     showRadio(episode, playableTracks);
     await playEpisode(runId, playableTracks);
   } catch (error) {
     if (!isCurrentRun(runId)) return;
-    stopLoadingMessages();
     showHome();
     showSearchMessage(error.message || "Impossible de générer l’émission.");
   }
@@ -553,7 +544,6 @@ function togglePause() {
 
 function stopEpisode() {
   resetRun();
-  stopLoadingMessages();
   clearSpeechCache();
   clearPlayback();
   state.episode = null;
@@ -796,7 +786,7 @@ function showLoading() {
   showSearchMessage("");
   els.results.replaceChildren();
   showScreen(els.loadingScreen);
-  startLoadingMessages();
+  setLoadingMessage(LOADING_MESSAGE);
 }
 
 function showHome() {
@@ -819,21 +809,6 @@ function showSearchMessage(message) {
 
 function setLoadingMessage(message) {
   els.loadingMessage.textContent = message;
-}
-
-function startLoadingMessages() {
-  let index = 0;
-  setLoadingMessage(loadingMessages[index]);
-  stopLoadingMessages();
-  state.loadingTimer = window.setInterval(() => {
-    index = (index + 1) % loadingMessages.length;
-    setLoadingMessage(loadingMessages[index]);
-  }, 1400);
-}
-
-function stopLoadingMessages() {
-  window.clearInterval(state.loadingTimer);
-  state.loadingTimer = 0;
 }
 
 function setPlaybackState(text) {
