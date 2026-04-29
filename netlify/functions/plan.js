@@ -2,7 +2,7 @@ const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
-const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 4200);
+const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 5200);
 const PLAYLIST_ROLES = [
   "opener",
   "origin",
@@ -38,7 +38,7 @@ const EPISODE_SCHEMA = {
   },
 };
 const SYSTEM_PROMPT =
-  "Tu es Radio Charlie, un moteur premium français de narration musicale. Tu crées des émissions radio intelligentes à partir d’un morceau. Le but n’est pas de décrire la musique, mais de raconter ce qui existe au-delà du son : histoire, contexte, tension humaine, paroles, scène, production et impact culturel. Tu écris uniquement en français oral naturel, dense, vivant, précis : France Culture + Radio Nova + Arte. Tu réponds uniquement en JSON valide.";
+  "Tu es Radio Charlie, une rédaction musicale française exigeante. Tu ne produis jamais de généralités promotionnelles : tu fabriques des chroniques radio avec anecdotes, dates, contexte historique, faits vérifiables, paroles, production, réception et conséquences culturelles. Ton style est oral, vivant, précis, jamais scolaire, jamais vague. Tu réponds uniquement en JSON valide.";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,13 +74,14 @@ exports.handler = async (event) => {
     title,
     album: cleanText(body.album),
   };
+  const hasAiProvider = Boolean(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY);
 
   if (!artist || !title) {
     return json(400, { error: "artist et title sont requis." });
   }
 
   const curatedEpisode = createCuratedEpisode(seed);
-  if (curatedEpisode) {
+  if (process.env.RADIO_CHARLIE_USE_CURATED === "true" && curatedEpisode) {
     return json(200, curatedEpisode);
   }
 
@@ -96,7 +97,7 @@ exports.handler = async (event) => {
         : createFreeEpisode(seed);
     return json(200, episode);
   } catch (error) {
-    if (shouldUseFreeEpisode(error) || process.env.RADIO_CHARLIE_STRICT_AI !== "true") {
+    if (!hasAiProvider || shouldUseFreeEpisode(error)) {
       return json(200, createFreeEpisode(seed));
     }
 
@@ -149,7 +150,7 @@ async function createOpenAiEpisode(seed) {
   const episode = normalizeEpisode(parseEpisode(content));
 
   if (!isValidEpisode(episode)) {
-    throw new Error("Format d'émission invalide.");
+    throw new Error("Qualité éditoriale insuffisante.");
   }
 
   return episode;
@@ -190,7 +191,7 @@ async function createClaudeEpisode(seed) {
   const episode = normalizeEpisode(parseEpisode(content));
 
   if (!isValidEpisode(episode)) {
-    throw new Error("Format d'émission invalide.");
+    throw new Error("Qualité éditoriale insuffisante.");
   }
 
   return episode;
@@ -212,6 +213,12 @@ Le but n’est pas de décrire la musique.
 Le but est de raconter ce qui existe au-delà du son :
 l’histoire, le contexte, la tension humaine, les paroles, la scène, la production et l’impact culturel.
 
+Niveau éditorial attendu :
+- vise une vraie chronique documentée, pas une ambiance ;
+- chaque intervention doit contenir des faits que l’auditeur pourrait vérifier ;
+- cherche l’anecdote, le détail de studio, le moment de carrière, la réception, le malentendu public, la scène locale, la date qui change tout ;
+- si tu n’as qu’une impression esthétique à dire, choisis un autre titre ou un autre angle.
+
 Langue :
 - français uniquement ;
 - français parlé naturel ;
@@ -228,7 +235,7 @@ Il sert de premier signal : à toi d’en tirer le parcours humain le plus inté
 L’émission doit contenir :
 - une playlist de 8 titres ;
 - une chronique éditoriale riche avant chaque titre ;
-- chaque chronique doit apprendre quelque chose de concret ;
+- chaque chronique doit apprendre quelque chose de concret : une anecdote, un fait, une date, une relation artistique, une controverse ou un contexte de sortie ;
 - chaque chronique doit apporter des informations nouvelles, sans répéter une autre chronique.
 
 Règles pour l’angle éditorial :
@@ -277,8 +284,14 @@ Chaque titre doit jouer un rôle précis dans le parcours, dans cet ordre exact 
 Le champ "role" de chaque piste doit reprendre exactement l’un de ces 8 rôles, dans cet ordre.
 Règles pour les chroniques :
 Chaque chronique doit être dense, utile et assez développée pour porter une vraie écoute radio.
-Objectif MVP privé : 100 à 140 mots par chronique.
-Chaque chronique doit ressembler à un mini-récit oral, pas à une notice : une accroche humaine, un fait concret, puis une idée qui donne envie d’écouter le morceau autrement.
+Objectif MVP privé : 120 à 170 mots par chronique.
+Chaque chronique doit ressembler à un mini-récit oral, pas à une notice : une accroche humaine, une anecdote ou tension concrète, deux faits précis, puis une idée qui donne envie d’écouter le morceau autrement.
+
+Structure obligatoire de chaque chronique :
+1. une phrase d’accroche qui pose un moment, une scène ou une tension ;
+2. au moins deux faits précis, dont au moins une date, une année ou une période claire ;
+3. un détail de contexte parmi production, label, studio, clip, paroles, réception, classement, controverse, sample, collaboration ou scène locale ;
+4. une conclusion qui explique pourquoi ce morceau sert le parcours éditorial.
 
 Chaque chronique doit inclure au moins 4 catégories différentes parmi :
 - contexte de sortie : date, album, moment de carrière ;
@@ -296,6 +309,18 @@ Ne répète pas la même idée avec d’autres mots.
 Ne répète pas l’angle principal dans chaque chronique.
 N’écris pas de remplissage.
 Privilégie les détails qui donnent de la chair : une époque, une scène, une tension biographique, une réception publique, un choix de studio, une phrase ou idée des paroles.
+
+À rechercher explicitement :
+- les dates de sortie, albums, labels, producteurs, studios, villes, scènes, collectifs ;
+- les anecdotes de création ou de réception ;
+- les paroles ou idées précises de la chanson ;
+- les controverses, malentendus, accusations, ruptures de carrière, bascules de public ;
+- les liens entre artistes : influence réelle, collaboration, opposition, héritage ou réponse culturelle.
+
+Exemples de niveau de précision attendu :
+- pas "le morceau révèle une époque", mais "en 1998, sur Mezzanine, Massive Attack durcit son son au moment où les tensions internes du groupe deviennent visibles" ;
+- pas "la chanson est intime", mais "le texte parle d’une surveillance amoureuse, et le clip transforme cette jalousie en décor de camions, d’armes et de gestes religieux" ;
+- pas "la production est moderne", mais "les palmas, la voix très proche et la production d’El Guincho déplacent le flamenco vers une architecture pop sèche".
 
 Chaque chronique doit répondre :
 "Qu’est-ce que l’auditeur apprend ici qu’il ne savait pas avant ?"
@@ -332,14 +357,16 @@ Schéma :
       "role": "opener",
       "artist": "string",
       "title": "string",
-      "chronicle": "chronique orale française riche, 100 à 140 mots"
+      "chronicle": "chronique orale française riche, documentée, 120 à 170 mots"
     }
   ]
 }
 
 Auto-vérification avant de répondre :
 Pour chaque chronique, vérifie :
-- y a-t-il au moins deux détails concrets parmi date précise, album, producteur, label, lieu, controverse, fait de classement, réception ou détail vérifiable ?
+- y a-t-il au moins une date, année ou période claire ?
+- y a-t-il au moins deux détails concrets parmi album, producteur, label, lieu, scène, clip, paroles, controverse, fait de classement, réception ou détail vérifiable ?
+- y a-t-il une anecdote ou une tension humaine identifiable ?
 - contient-elle des paroles ou du contexte, pas seulement de la production ?
 - évite-t-elle de répéter une autre chronique ?
 - ressemble-t-elle à une vraie histoire, pas à une description ?
@@ -398,9 +425,33 @@ function isValidEpisode(episode) {
           PLAYLIST_ROLES.includes(track.role) &&
           cleanText(track.artist) &&
           cleanText(track.title) &&
-          cleanText(track.chronicle),
+          isEditorialChronicle(track.chronicle),
       ),
   );
+}
+
+function isEditorialChronicle(value) {
+  const text = cleanText(value);
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  const hasDate = /\b(?:19|20)\d{2}\b|\bannées?\s+(?:60|70|80|90|2000|2010|2020)\b/i.test(text);
+  const concreteSignals = [
+    /\balbum\b/i,
+    /\blabel\b/i,
+    /\bproduct(?:eur|ion|rice)\b/i,
+    /\bstudio\b/i,
+    /\bclip\b/i,
+    /\bparoles?\b/i,
+    /\bsample\b/i,
+    /\bclassement\b/i,
+    /\bcontroverse\b/i,
+    /\bscène\b/i,
+    /\bcollectif\b/i,
+    /\bville\b/i,
+    /\bsort(?:i|ie|ent)\b/i,
+    /\bpubl(?:ie|ié|iée)\b/i,
+  ].filter((pattern) => pattern.test(text)).length;
+
+  return wordCount >= 90 && hasDate && concreteSignals >= 2;
 }
 
 function normalizePlaylistRole(role, index) {
@@ -440,6 +491,10 @@ function getAiUserMessage(error) {
 
   if (lowerMessage.includes("model")) {
     return "Le modèle IA configuré n’est pas disponible pour cette clé.";
+  }
+
+  if (lowerMessage.includes("qualité éditoriale")) {
+    return "L’IA a produit une émission trop pauvre en faits. Relance la génération pour obtenir une version plus documentée.";
   }
 
   return "L’IA ne répond pas pour le moment.";

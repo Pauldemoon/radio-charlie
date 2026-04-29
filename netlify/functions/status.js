@@ -24,8 +24,9 @@ exports.handler = async (event) => {
     aiProvider: hasClaude ? "claude" : hasOpenAi ? "openai" : "local",
     claudeConfigured: hasClaude,
     claudeModel: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5",
-    aiMaxTokens: Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 4200),
-    voiceProvider: process.env.GOOGLE_TTS_API_KEY ? "google-tts" : "browser",
+    aiMaxTokens: Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 5200),
+    voiceProvider:
+      process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID ? "elevenlabs" : "browser",
     strictAi: process.env.RADIO_CHARLIE_STRICT_AI === "true",
     freeMode: process.env.RADIO_CHARLIE_FREE_MODE === "true",
   });
