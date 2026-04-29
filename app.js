@@ -189,7 +189,8 @@ function renderSearchResults(tracks) {
 
 async function startEpisode(seedTrack) {
   const runId = resetRun();
-  showLoading();
+  showPreparingRadio(seedTrack);
+  playOpeningPreview(seedTrack.preview).catch(() => {});
 
   try {
     const episode = await fetchPlan({
@@ -203,7 +204,7 @@ async function startEpisode(seedTrack) {
     if (!isCurrentRun(runId)) return;
 
     preloadSpeech(getTrackChronicle(episode.tracks[0])).catch(() => {});
-    setLoadingMessage("Sélection des extraits…");
+    setPlaybackState("Sélection des extraits…");
     const playableTracks = await enrichWithDeezer(episode.tracks);
 
     if (!isCurrentRun(runId)) return;
@@ -215,11 +216,15 @@ async function startEpisode(seedTrack) {
     state.episode = episode;
     state.playableTracks = playableTracks;
     stopLoadingMessages();
+    await fadeOutCurrentPlayback();
+    if (!isCurrentRun(runId)) return;
+
     showRadio(episode, playableTracks);
     await playEpisode(runId, playableTracks);
   } catch (error) {
     if (!isCurrentRun(runId)) return;
     stopLoadingMessages();
+    interruptCurrentStep();
     showHome();
     showSearchMessage(error.message || "Impossible de générer l’émission.");
   }
@@ -415,6 +420,19 @@ function playPreview(url) {
   return playAudio(url);
 }
 
+function playOpeningPreview(url) {
+  return playAudio(url, () => {}, 0, true);
+}
+
+function fadeOutCurrentPlayback(durationMs = 900) {
+  if (!state.playback?.fadeOut) {
+    interruptCurrentStep();
+    return Promise.resolve();
+  }
+
+  return state.playback.fadeOut(durationMs);
+}
+
 function primeAudioPlayback() {
   if (state.audioUnlocked) {
     return Promise.resolve();
@@ -449,7 +467,7 @@ function primeAudioPlayback() {
   return state.audioUnlockPromise;
 }
 
-function playAudio(url, cleanup = () => {}) {
+function playAudio(url, cleanup = () => {}, maxDurationMs = 0, shouldLoop = false) {
   return new Promise((resolve) => {
     if (!url) {
       resolve();
@@ -460,6 +478,7 @@ function playAudio(url, cleanup = () => {}) {
     delete audio.dataset.unlocking;
     state.audioUnlockPromise = null;
     let isWaitingForManualStart = false;
+    let maxDurationTimer = 0;
 
     const startAudio = () => {
       const playPromise = audio.play();
@@ -468,6 +487,9 @@ function playAudio(url, cleanup = () => {}) {
         playPromise
           .then(() => {
             state.audioUnlocked = true;
+            if (maxDurationMs && !maxDurationTimer) {
+              maxDurationTimer = window.setTimeout(done, maxDurationMs);
+            }
           })
           .catch((error) => {
             if (isPlaybackBlocked(error) && !isWaitingForManualStart) {
@@ -483,7 +505,9 @@ function playAudio(url, cleanup = () => {}) {
 
     const done = once(() => {
       clearManualAudioStart();
+      window.clearTimeout(maxDurationTimer);
       audio.pause();
+      audio.loop = false;
       audio.removeEventListener("ended", done);
       audio.removeEventListener("error", done);
       audio.removeAttribute("src");
@@ -495,12 +519,16 @@ function playAudio(url, cleanup = () => {}) {
 
     audio.pause();
     audio.src = url;
+    audio.loop = shouldLoop;
     audio.load();
     audio.addEventListener("ended", done);
     audio.addEventListener("error", done);
     state.playback = {
       stop() {
         done();
+      },
+      fadeOut(durationMs = 900) {
+        return fadeOutAudio(audio, durationMs).then(done);
       },
       pause() {
         audio.pause();
@@ -512,6 +540,28 @@ function playAudio(url, cleanup = () => {}) {
     resetPauseControl(false);
 
     startAudio();
+  });
+}
+
+function fadeOutAudio(audio, durationMs = 900) {
+  return new Promise((resolve) => {
+    const startVolume = audio.volume;
+    const startedAt = performance.now();
+
+    function tick(now) {
+      const progress = Math.min((now - startedAt) / durationMs, 1);
+      audio.volume = startVolume * (1 - progress);
+
+      if (progress < 1) {
+        window.requestAnimationFrame(tick);
+        return;
+      }
+
+      audio.volume = startVolume;
+      resolve();
+    }
+
+    window.requestAnimationFrame(tick);
   });
 }
 
@@ -781,6 +831,28 @@ function renderQueue(tracks, activeIndex) {
 function showRadio(episode, tracks) {
   els.radioTitle.textContent = getEpisodeTitle(episode);
   renderQueue(tracks, 0);
+  showScreen(els.radioScreen);
+}
+
+function showPreparingRadio(seedTrack) {
+  state.episode = null;
+  state.playableTracks = [];
+  els.radioTitle.textContent = "Préparation de l’émission";
+  els.progress.textContent = "Ouverture";
+  els.currentCover.src = seedTrack.album?.cover_medium || FALLBACK_COVER;
+  els.currentCover.alt = `Pochette de ${seedTrack.title}`;
+  els.currentArtist.textContent = seedTrack.artist?.name || "";
+  els.currentTitle.textContent = seedTrack.title || "";
+
+  if (seedTrack.link) {
+    els.currentLink.href = seedTrack.link;
+    els.currentLink.hidden = false;
+  } else {
+    els.currentLink.hidden = true;
+  }
+
+  els.queue.replaceChildren();
+  setPlaybackState("Charlie prépare l’émission…");
   showScreen(els.radioScreen);
 }
 
