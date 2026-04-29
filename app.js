@@ -1,4 +1,6 @@
 const DEEZER_SEARCH_URL = "https://api.deezer.com/search";
+const IOS_AUDIO_UNLOCK_URL =
+  "data:audio/wav;base64,UklGRmQBAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
 const FALLBACK_COVER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Crect width='600' height='600' fill='%23141312'/%3E%3Ccircle cx='300' cy='300' r='190' fill='%23d8b36a' fill-opacity='.16'/%3E%3Ccircle cx='300' cy='300' r='78' fill='%23d8b36a' fill-opacity='.42'/%3E%3C/svg%3E";
 
@@ -25,6 +27,7 @@ const els = {
   radioAngle: document.querySelector("#radio-angle"),
   radioIntro: document.querySelector("#radio-intro"),
   pauseButton: document.querySelector("#pause-button"),
+  audioUnlockButton: document.querySelector("#audio-unlock-button"),
   skipButton: document.querySelector("#skip-button"),
   stopButton: document.querySelector("#stop-button"),
   restartButton: document.querySelector("#restart-button"),
@@ -38,6 +41,10 @@ const els = {
   progress: document.querySelector("#progress"),
   queue: document.querySelector("#queue"),
 };
+
+const sharedAudio = new Audio();
+sharedAudio.preload = "auto";
+sharedAudio.setAttribute("playsinline", "");
 
 const roleLabels = {
   opener: "Ouverture",
@@ -60,6 +67,9 @@ const state = {
   isPaused: false,
   episode: null,
   playableTracks: [],
+  audioUnlocked: false,
+  audioUnlockPromise: null,
+  pendingAudioStart: null,
 };
 
 els.searchInput.focus();
@@ -86,6 +96,15 @@ els.suggestions.forEach((button) => {
 
 els.pauseButton.addEventListener("click", () => {
   togglePause();
+});
+
+els.audioUnlockButton.addEventListener("click", () => {
+  if (state.pendingAudioStart) {
+    state.pendingAudioStart();
+    return;
+  }
+
+  primeAudioPlayback();
 });
 
 els.skipButton.addEventListener("click", () => {
@@ -161,7 +180,10 @@ function renderSearchResults(tracks) {
 
     copy.append(title, artist);
     card.append(cover, copy, cta);
-    card.addEventListener("click", () => startEpisode(track));
+    card.addEventListener("click", () => {
+      primeAudioPlayback();
+      startEpisode(track);
+    });
     fragment.append(card);
   });
 
@@ -364,6 +386,40 @@ function playPreview(url) {
   return playAudio(url);
 }
 
+function primeAudioPlayback() {
+  if (state.audioUnlocked) {
+    return Promise.resolve();
+  }
+
+  if (state.audioUnlockPromise) {
+    return state.audioUnlockPromise;
+  }
+
+  sharedAudio.dataset.unlocking = "true";
+  sharedAudio.src = IOS_AUDIO_UNLOCK_URL;
+  sharedAudio.load();
+
+  state.audioUnlockPromise = sharedAudio
+    .play()
+    .then(() => {
+      if (sharedAudio.dataset.unlocking === "true") {
+        sharedAudio.pause();
+        sharedAudio.currentTime = 0;
+        sharedAudio.removeAttribute("src");
+        sharedAudio.load();
+        delete sharedAudio.dataset.unlocking;
+      }
+
+      state.audioUnlocked = true;
+    })
+    .catch(() => {
+      delete sharedAudio.dataset.unlocking;
+      state.audioUnlockPromise = null;
+    });
+
+  return state.audioUnlockPromise;
+}
+
 function playAudio(url, cleanup = () => {}) {
   return new Promise((resolve) => {
     if (!url) {
@@ -371,15 +427,46 @@ function playAudio(url, cleanup = () => {}) {
       return;
     }
 
-    const audio = new Audio(url);
+    const audio = sharedAudio;
+    delete audio.dataset.unlocking;
+    state.audioUnlockPromise = null;
+    let isWaitingForManualStart = false;
+
+    const startAudio = () => {
+      const playPromise = audio.play();
+
+      if (playPromise?.then) {
+        playPromise
+          .then(() => {
+            state.audioUnlocked = true;
+          })
+          .catch((error) => {
+            if (isPlaybackBlocked(error) && !isWaitingForManualStart) {
+              isWaitingForManualStart = true;
+              requestManualAudioStart(startAudio);
+              return;
+            }
+
+            done();
+          });
+      }
+    };
+
     const done = once(() => {
+      clearManualAudioStart();
       audio.pause();
+      audio.removeEventListener("ended", done);
+      audio.removeEventListener("error", done);
       audio.removeAttribute("src");
+      audio.load();
       cleanup();
       clearPlayback();
       resolve();
     });
 
+    audio.pause();
+    audio.src = url;
+    audio.load();
     audio.addEventListener("ended", done);
     audio.addEventListener("error", done);
     state.playback = {
@@ -395,8 +482,29 @@ function playAudio(url, cleanup = () => {}) {
     };
     resetPauseControl(false);
 
-    audio.play().catch(done);
+    startAudio();
   });
+}
+
+function requestManualAudioStart(startAudio) {
+  state.pendingAudioStart = () => {
+    clearManualAudioStart();
+    startAudio();
+  };
+  els.audioUnlockButton.hidden = false;
+  els.playbackState.textContent = "Touchez « Activer le son » pour continuer";
+}
+
+function clearManualAudioStart() {
+  state.pendingAudioStart = null;
+  els.audioUnlockButton.hidden = true;
+}
+
+function isPlaybackBlocked(error) {
+  return (
+    error?.name === "NotAllowedError" ||
+    /gesture|interaction|not allowed|autoplay/i.test(error?.message || "")
+  );
 }
 
 function interruptCurrentStep() {
@@ -437,6 +545,7 @@ function stopEpisode() {
 
 function clearPlayback() {
   state.playback = null;
+  clearManualAudioStart();
   resetPauseControl(false, true);
 }
 
