@@ -2,7 +2,7 @@ const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
-const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 2200);
+const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 3000);
 const PLAYLIST_ROLES = [
   "opener",
   "origin",
@@ -222,7 +222,7 @@ Il sert de premier signal : à toi d’en tirer le parcours humain le plus inté
 
 L’émission doit contenir :
 - une playlist de 8 titres ;
-- une chronique courte avant chaque titre ;
+- une chronique éditoriale fournie avant chaque titre ;
 - chaque chronique doit apprendre quelque chose de concret ;
 - chaque chronique doit apporter des informations nouvelles, sans répéter une autre chronique.
 
@@ -271,8 +271,8 @@ Chaque titre doit jouer un rôle précis dans le parcours, dans cet ordre exact 
 
 Le champ "role" de chaque piste doit reprendre exactement l’un de ces 8 rôles, dans cet ordre.
 Règles pour les chroniques :
-Chaque chronique doit être assez dense pour être utile, mais assez courte pour une émission fluide.
-Objectif MVP privé : 35 à 55 mots par chronique.
+Chaque chronique doit être dense, utile et assez développée pour porter une vraie écoute radio.
+Objectif MVP privé : 70 à 100 mots par chronique.
 
 Chaque chronique doit inclure au moins 3 catégories différentes parmi :
 - contexte de sortie : date, album, moment de carrière ;
@@ -325,7 +325,7 @@ Schéma :
       "role": "opener",
       "artist": "string",
       "title": "string",
-      "chronicle": "chronique orale française dense, 35 à 55 mots"
+      "chronicle": "chronique orale française dense, 70 à 100 mots"
     }
   ]
 }
