@@ -79,6 +79,11 @@ exports.handler = async (event) => {
     return json(400, { error: "artist et title sont requis." });
   }
 
+  const curatedEpisode = createCuratedEpisode(seed);
+  if (curatedEpisode) {
+    return json(200, curatedEpisode);
+  }
+
   if (process.env.RADIO_CHARLIE_FREE_MODE === "true") {
     return json(200, createFreeEpisode(seed));
   }
@@ -453,7 +458,7 @@ function shouldUseFreeEpisode(error) {
   );
 }
 
-function createFreeEpisode(seed) {
+function createCuratedEpisode(seed) {
   const key = trackKey(seed);
 
   if (key.includes("rosalia") || key.includes("malamente")) {
@@ -596,7 +601,11 @@ function createFreeEpisode(seed) {
     return buildCuratedEpisode(createMassiveAttackEpisode(seed));
   }
 
-  return buildCuratedEpisode(createMassiveAttackEpisode(seed));
+  return null;
+}
+
+function createFreeEpisode(seed) {
+  return createCuratedEpisode(seed) || buildCuratedEpisode(createMassiveAttackEpisode(seed));
 }
 
 function createMassiveAttackEpisode(seed) {
