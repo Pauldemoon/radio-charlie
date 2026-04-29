@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Variables d'environnement (ne jamais pousser les clés API)
+.env
+.env.local
+.env.*
+
+# Node
+node_modules/
+
+# Archive locale
+Archive/
+Archive.zip

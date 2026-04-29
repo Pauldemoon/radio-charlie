@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Radio Charlie génère une émission musicale intelligente à partir d'un morceau."
+    >
+    <title>Radio Charlie</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main class="app">
+      <section id="home-screen" class="screen screen--active" aria-label="Accueil">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="brand-logo brand-logo--home" aria-label="Radio Charlie">
+              <img class="brand-logo-image" src="./assets/radio-charlie-logo-mark.png" alt="Radio Charlie">
+            </div>
+            <h1 class="sr-only">Radio Charlie</h1>
+          </div>
+
+          <form id="search-form" class="search" autocomplete="off">
+            <input
+              id="search-input"
+              type="search"
+              name="query"
+              placeholder="Rechercher un morceau…"
+              aria-label="Rechercher un morceau"
+            >
+            <button type="submit">Rechercher</button>
+          </form>
+
+          <div class="suggestions" aria-label="Suggestions de morceaux">
+            <button type="button" data-query="Massive Attack Teardrop">Massive Attack</button>
+            <button type="button" data-query="Rosalia Malamente">Rosalía</button>
+            <button type="button" data-query="Daft Punk Veridis Quo">Daft Punk</button>
+          </div>
+
+          <p class="help">Choisissez un titre pour lancer une émission.</p>
+          <p id="search-message" class="message" role="status" aria-live="polite"></p>
+        </div>
+
+        <div id="results" class="results" aria-label="Résultats Deezer"></div>
+        <p class="page-tagline">Au-delà du son.</p>
+      </section>
+
+      <section id="loading-screen" class="screen loading-screen" aria-label="Chargement">
+        <div class="brand-logo brand-logo--status" aria-label="Radio Charlie">
+          <img class="brand-logo-image" src="./assets/radio-charlie-logo-mark.png" alt="Radio Charlie">
+        </div>
+        <div class="loading-mark" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <p id="loading-message" class="loading-message" role="status" aria-live="polite">
+          Charlie prépare l’émission…
+        </p>
+      </section>
+
+      <section id="radio-screen" class="screen radio-screen" aria-label="Émission">
+        <header class="radio-header">
+          <div>
+            <div class="brand-logo brand-logo--compact" aria-label="Radio Charlie">
+              <img class="brand-logo-image" src="./assets/radio-charlie-logo-mark.png" alt="Radio Charlie">
+            </div>
+            <h2 id="radio-title">Émission</h2>
+            <p id="radio-angle" class="angle"></p>
+            <p id="radio-intro" class="intro"></p>
+          </div>
+          <div class="radio-actions">
+            <button id="pause-button" class="secondary-button" type="button" disabled aria-pressed="false">
+              Pause
+            </button>
+            <button id="skip-button" class="secondary-button" type="button">Passer</button>
+            <button id="stop-button" class="danger-button" type="button">Arrêter l’émission</button>
+          </div>
+        </header>
+
+        <section class="now">
+          <div class="cover-frame">
+            <img id="current-cover" class="cover" src="" alt="">
+            <div class="meter" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+
+          <div class="now-copy">
+            <div class="meta-row">
+              <span id="current-role" class="role-pill">Opener</span>
+              <span id="progress" class="progress">1 / 8</span>
+              <span id="playback-state" class="state">Charlie raconte…</span>
+            </div>
+            <p id="chronique" class="chronique"></p>
+            <div class="track-card">
+              <p id="current-artist" class="artist"></p>
+              <h3 id="current-title"></h3>
+              <a id="current-link" class="deezer-link" href="#" target="_blank" rel="noreferrer" hidden>
+                Ouvrir sur Deezer
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <ol id="queue" class="queue" aria-label="Playlist de l'émission"></ol>
+      </section>
+
+      <section id="end-screen" class="screen end-screen" aria-label="Fin">
+        <div class="brand-logo brand-logo--status" aria-label="Radio Charlie">
+          <img class="brand-logo-image" src="./assets/radio-charlie-logo-mark.png" alt="Radio Charlie">
+        </div>
+        <h2>Fin de l’émission.</h2>
+        <button id="restart-button" class="primary-button" type="button">
+          Relancer avec un autre morceau
+        </button>
+      </section>
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
