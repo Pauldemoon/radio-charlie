@@ -28,7 +28,6 @@ exports.handler = async (event) => {
     voiceProvider:
       process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID ? "elevenlabs" : "browser",
     strictAi: process.env.RADIO_CHARLIE_STRICT_AI === "true",
-    freeMode: process.env.RADIO_CHARLIE_FREE_MODE === "true",
   });
 };
 
