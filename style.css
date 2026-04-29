@@ -232,34 +232,6 @@ h1 {
   min-width: 132px;
 }
 
-.suggestions {
-  grid-column: 1 / -1;
-  justify-self: center;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: -20px;
-}
-
-.suggestions button {
-  min-height: 34px;
-  border: 1px solid rgba(17, 16, 14, 0.18);
-  border-radius: 999px;
-  padding: 0 13px;
-  background: rgba(255, 250, 241, 0.76);
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.suggestions button:hover,
-.suggestions button:focus-visible {
-  border-color: rgba(15, 107, 114, 0.48);
-  color: var(--text);
-  outline: 0;
-}
-
 .secondary-button {
   border-color: rgba(17, 16, 14, 0.24);
   background: transparent;
