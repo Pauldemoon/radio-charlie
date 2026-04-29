@@ -35,6 +35,7 @@ const els = {
   currentLink: document.querySelector("#current-link"),
   playbackState: document.querySelector("#playback-state"),
   progress: document.querySelector("#progress"),
+  preparingAnimation: document.querySelector("#preparing-animation"),
   queue: document.querySelector("#queue"),
 };
 
@@ -844,6 +845,9 @@ function isValidEpisode(value) {
 }
 
 function updateCurrentTrack(track, index, total) {
+  els.preparingAnimation.hidden = true;
+  els.progress.hidden = false;
+  els.playbackState.hidden = false;
   els.progress.textContent = `${index + 1} / ${total}`;
   els.currentCover.src = track.cover || FALLBACK_COVER;
   els.currentCover.alt = `Pochette de ${track.title}`;
@@ -887,6 +891,9 @@ function renderQueue(tracks, activeIndex) {
 }
 
 function showRadio(episode, tracks) {
+  els.preparingAnimation.hidden = true;
+  els.progress.hidden = false;
+  els.playbackState.hidden = false;
   els.radioTitle.textContent = getEpisodeTitle(episode);
   renderQueue(tracks, 0);
   showScreen(els.radioScreen);
@@ -895,8 +902,10 @@ function showRadio(episode, tracks) {
 function showPreparingRadio(seedTrack) {
   state.episode = null;
   state.playableTracks = [];
-  els.radioTitle.textContent = "Préparation de l’émission";
-  els.progress.textContent = "Ouverture";
+  els.radioTitle.textContent = "Radio Charlie";
+  els.progress.hidden = true;
+  els.playbackState.hidden = true;
+  els.preparingAnimation.hidden = false;
   els.currentCover.src = seedTrack.album?.cover_medium || FALLBACK_COVER;
   els.currentCover.alt = `Pochette de ${seedTrack.title}`;
   els.currentArtist.textContent = seedTrack.artist?.name || "";
