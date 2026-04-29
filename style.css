@@ -429,22 +429,6 @@ h1 {
   letter-spacing: 0;
 }
 
-.angle {
-  max-width: 760px;
-  margin: 18px 0 0;
-  color: var(--muted);
-  font-size: clamp(17px, 2vw, 21px);
-  line-height: 1.45;
-}
-
-.intro {
-  max-width: 760px;
-  margin: 12px 0 0;
-  color: var(--faint);
-  font-size: 15px;
-  line-height: 1.55;
-}
-
 .radio-actions {
   display: flex;
   flex-wrap: wrap;
@@ -499,7 +483,6 @@ h1 {
   margin-bottom: 18px;
 }
 
-.role-pill,
 .progress,
 .state {
   display: inline-flex;
@@ -509,12 +492,6 @@ h1 {
   padding: 0 12px;
   font-size: 13px;
   font-weight: 800;
-}
-
-.role-pill {
-  border: 1px solid rgba(17, 16, 14, 0.18);
-  background: rgba(255, 250, 241, 0.8);
-  color: var(--wood);
 }
 
 .progress {
@@ -528,20 +505,8 @@ h1 {
   background: var(--signal-soft);
 }
 
-.chronique {
-  margin: 0;
-  color: var(--text);
-  font-family:
-    "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman",
-    serif;
-  font-size: clamp(22px, 3vw, 34px);
-  line-height: 1.28;
-}
-
 .track-card {
-  margin-top: 28px;
-  padding-top: 22px;
-  border-top: 1px solid var(--line);
+  margin-top: 0;
 }
 
 .artist {
@@ -623,24 +588,6 @@ h1 {
 .queue-title {
   color: var(--text);
   font-weight: 850;
-}
-
-.queue-role {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--signal);
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.queue-reason {
-  display: block;
-  margin-top: 8px;
-  color: var(--faint);
-  font-size: 13px;
-  line-height: 1.35;
 }
 
 .end-screen h2 {

@@ -24,19 +24,15 @@ const els = {
   results: document.querySelector("#results"),
   loadingMessage: document.querySelector("#loading-message"),
   radioTitle: document.querySelector("#radio-title"),
-  radioAngle: document.querySelector("#radio-angle"),
-  radioIntro: document.querySelector("#radio-intro"),
   pauseButton: document.querySelector("#pause-button"),
   audioUnlockButton: document.querySelector("#audio-unlock-button"),
   skipButton: document.querySelector("#skip-button"),
   stopButton: document.querySelector("#stop-button"),
   restartButton: document.querySelector("#restart-button"),
   currentCover: document.querySelector("#current-cover"),
-  currentRole: document.querySelector("#current-role"),
   currentArtist: document.querySelector("#current-artist"),
   currentTitle: document.querySelector("#current-title"),
   currentLink: document.querySelector("#current-link"),
-  chronique: document.querySelector("#chronique"),
   playbackState: document.querySelector("#playback-state"),
   progress: document.querySelector("#progress"),
   queue: document.querySelector("#queue"),
@@ -295,7 +291,6 @@ async function playEpisode(runId, tracks) {
     const chronicle = getTrackChronicle(track);
     updateCurrentTrack(track, index, tracks.length);
     setPlaybackState("Charlie raconte…");
-    els.chronique.textContent = chronicle;
 
     await speak(chronicle);
     if (!isCurrentRun(runId)) return;
@@ -702,7 +697,6 @@ function isValidEpisode(value) {
 
 function updateCurrentTrack(track, index, total) {
   els.progress.textContent = `${index + 1} / ${total}`;
-  els.currentRole.textContent = getRoleLabel(getTrackRole(track, index));
   els.currentCover.src = track.cover || FALLBACK_COVER;
   els.currentCover.alt = `Pochette de ${track.title}`;
   els.currentArtist.textContent = track.artist;
@@ -725,24 +719,18 @@ function renderQueue(tracks, activeIndex) {
     const item = document.createElement("li");
     const number = document.createElement("em");
     const copy = document.createElement("span");
-    const role = document.createElement("span");
     const title = document.createElement("span");
     const artist = document.createElement("span");
-    const reason = document.createElement("span");
 
     item.className = index === activeIndex ? "is-active" : "";
     number.className = "queue-index";
     number.textContent = String(index + 1);
-    role.className = "queue-role";
-    role.textContent = getRoleLabel(getTrackRole(track, index));
     title.className = "queue-title";
     title.textContent = track.title;
     artist.className = "queue-artist";
     artist.textContent = track.artist;
-    reason.className = "queue-reason";
-    reason.textContent = track.reason;
 
-    copy.append(role, title, artist, reason);
+    copy.append(title, artist);
     item.append(number, copy);
     fragment.append(item);
   });
@@ -752,8 +740,6 @@ function renderQueue(tracks, activeIndex) {
 
 function showRadio(episode, tracks) {
   els.radioTitle.textContent = getEpisodeTitle(episode);
-  els.radioAngle.textContent = episode.angle;
-  els.radioIntro.textContent = episode.intro;
   renderQueue(tracks, 0);
   showScreen(els.radioScreen);
 }
