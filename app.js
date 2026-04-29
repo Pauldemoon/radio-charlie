@@ -35,7 +35,6 @@ const els = {
   currentLink: document.querySelector("#current-link"),
   playbackState: document.querySelector("#playback-state"),
   progress: document.querySelector("#progress"),
-  preparingAnimation: document.querySelector("#preparing-animation"),
   queue: document.querySelector("#queue"),
 };
 
@@ -67,7 +66,6 @@ const state = {
   audioUnlocked: false,
   audioUnlockPromise: null,
   pendingAudioStart: null,
-  previewPreloads: new Map(),
   speechCache: new Map(),
 };
 
@@ -179,9 +177,9 @@ function renderSearchResults(tracks) {
 
     copy.append(title, artist);
     card.append(cover, copy, cta);
-    preloadPreviewAudio(track.preview);
     card.addEventListener("click", () => {
-      startEpisode(track, primeAudioPlayback());
+      primeAudioPlayback();
+      startEpisode(track);
     });
     fragment.append(card);
   });
@@ -189,30 +187,23 @@ function renderSearchResults(tracks) {
   els.results.replaceChildren(fragment);
 }
 
-async function startEpisode(seedTrack, audioReadyPromise = Promise.resolve()) {
+async function startEpisode(seedTrack) {
   const runId = resetRun();
-  showPreparingRadio(seedTrack);
-  const episodePromise = fetchPlan({
-    artist: seedTrack.artist.name,
-    title: seedTrack.title,
-    album: seedTrack.album?.title || "",
-    deezerArtistId: seedTrack.artist?.id || "",
-    deezerTrackId: seedTrack.id || "",
-  });
-  episodePromise.catch(() => {});
-  await audioReadyPromise.catch(() => {});
-
-  if (!isCurrentRun(runId)) return;
-
-  playOpeningPreview(seedTrack.preview).catch(() => {});
+  showLoading();
 
   try {
-    const episode = await episodePromise;
+    const episode = await fetchPlan({
+      artist: seedTrack.artist.name,
+      title: seedTrack.title,
+      album: seedTrack.album?.title || "",
+      deezerArtistId: seedTrack.artist?.id || "",
+      deezerTrackId: seedTrack.id || "",
+    });
 
     if (!isCurrentRun(runId)) return;
 
     preloadSpeech(getTrackChronicle(episode.tracks[0])).catch(() => {});
-    setPlaybackState("Sélection des extraits…");
+    setLoadingMessage("Sélection des extraits…");
     const playableTracks = await enrichWithDeezer(episode.tracks);
 
     if (!isCurrentRun(runId)) return;
@@ -224,15 +215,11 @@ async function startEpisode(seedTrack, audioReadyPromise = Promise.resolve()) {
     state.episode = episode;
     state.playableTracks = playableTracks;
     stopLoadingMessages();
-    await fadeOutCurrentPlayback();
-    if (!isCurrentRun(runId)) return;
-
     showRadio(episode, playableTracks);
     await playEpisode(runId, playableTracks);
   } catch (error) {
     if (!isCurrentRun(runId)) return;
     stopLoadingMessages();
-    interruptCurrentStep();
     showHome();
     showSearchMessage(error.message || "Impossible de générer l’émission.");
   }
@@ -428,19 +415,6 @@ function playPreview(url) {
   return playAudio(url);
 }
 
-function playOpeningPreview(url) {
-  return playAudio(url, () => {}, 0, true);
-}
-
-function fadeOutCurrentPlayback(durationMs = 900) {
-  if (!state.playback?.fadeOut) {
-    interruptCurrentStep();
-    return Promise.resolve();
-  }
-
-  return state.playback.fadeOut(durationMs);
-}
-
 function primeAudioPlayback() {
   if (state.audioUnlocked) {
     return Promise.resolve();
@@ -475,30 +449,17 @@ function primeAudioPlayback() {
   return state.audioUnlockPromise;
 }
 
-function playAudio(url, cleanup = () => {}, maxDurationMs = 0, shouldLoop = false) {
-  return playAudioElement(sharedAudio, {
-    url,
-    cleanup,
-    maxDurationMs,
-    shouldLoop,
-    shouldResetSource: true,
-  });
-}
-
-function playAudioElement(
-  audio,
-  { url = "", cleanup = () => {}, maxDurationMs = 0, shouldLoop = false, shouldResetSource = false } = {},
-) {
+function playAudio(url, cleanup = () => {}) {
   return new Promise((resolve) => {
-    if (!audio || (!url && !audio.src)) {
+    if (!url) {
       resolve();
       return;
     }
 
+    const audio = sharedAudio;
     delete audio.dataset.unlocking;
     state.audioUnlockPromise = null;
     let isWaitingForManualStart = false;
-    let maxDurationTimer = 0;
 
     const startAudio = () => {
       const playPromise = audio.play();
@@ -507,9 +468,6 @@ function playAudioElement(
         playPromise
           .then(() => {
             state.audioUnlocked = true;
-            if (maxDurationMs && !maxDurationTimer) {
-              maxDurationTimer = window.setTimeout(done, maxDurationMs);
-            }
           })
           .catch((error) => {
             if (isPlaybackBlocked(error) && !isWaitingForManualStart) {
@@ -525,42 +483,24 @@ function playAudioElement(
 
     const done = once(() => {
       clearManualAudioStart();
-      window.clearTimeout(maxDurationTimer);
       audio.pause();
-      audio.loop = false;
       audio.removeEventListener("ended", done);
       audio.removeEventListener("error", done);
-      if (shouldResetSource) {
-        audio.removeAttribute("src");
-        audio.load();
-      }
+      audio.removeAttribute("src");
+      audio.load();
       cleanup();
       clearPlayback();
       resolve();
     });
 
     audio.pause();
-    if (url) {
-      audio.src = url;
-    } else {
-      try {
-        audio.currentTime = 0;
-      } catch (error) {
-        // Some remote streams do not allow seeking before metadata is ready.
-      }
-    }
-    audio.loop = shouldLoop;
-    if (url || audio.readyState === 0) {
-      audio.load();
-    }
+    audio.src = url;
+    audio.load();
     audio.addEventListener("ended", done);
     audio.addEventListener("error", done);
     state.playback = {
       stop() {
         done();
-      },
-      fadeOut(durationMs = 900) {
-        return fadeOutAudio(audio, durationMs).then(done);
       },
       pause() {
         audio.pause();
@@ -575,61 +515,12 @@ function playAudioElement(
   });
 }
 
-function preloadPreviewAudio(url) {
-  if (!url || state.previewPreloads.has(url)) {
-    return state.previewPreloads.get(url) || null;
-  }
-
-  const audio = new Audio(url);
-  audio.preload = "auto";
-  audio.setAttribute("playsinline", "");
-  audio.load();
-  state.previewPreloads.set(url, audio);
-  return audio;
-}
-
-function getPreloadedPreviewAudio(url) {
-  return state.previewPreloads.get(url) || preloadPreviewAudio(url) || sharedAudio;
-}
-
-function clearPreviewPreloads() {
-  state.previewPreloads.forEach((audio) => {
-    audio.pause();
-    audio.removeAttribute("src");
-    audio.load();
-  });
-  state.previewPreloads.clear();
-}
-
-function fadeOutAudio(audio, durationMs = 900) {
-  return new Promise((resolve) => {
-    const startVolume = audio.volume;
-    const startedAt = performance.now();
-
-    function tick(now) {
-      const progress = Math.min((now - startedAt) / durationMs, 1);
-      audio.volume = startVolume * (1 - progress);
-
-      if (progress < 1) {
-        window.requestAnimationFrame(tick);
-        return;
-      }
-
-      audio.volume = startVolume;
-      resolve();
-    }
-
-    window.requestAnimationFrame(tick);
-  });
-}
-
 function requestManualAudioStart(startAudio) {
   state.pendingAudioStart = () => {
     clearManualAudioStart();
     startAudio();
   };
   els.audioUnlockButton.hidden = false;
-  els.playbackState.hidden = false;
   els.playbackState.textContent = "Touchez « Activer le son » pour continuer";
 }
 
@@ -673,7 +564,6 @@ function stopEpisode() {
   stopLoadingMessages();
   clearSpeechCache();
   clearPlayback();
-  clearPreviewPreloads();
   state.episode = null;
   state.playableTracks = [];
   els.searchInput.value = "";
@@ -705,7 +595,6 @@ function resetRun() {
 
 function resetSearch() {
   state.searchId += 1;
-  clearPreviewPreloads();
   return state.searchId;
 }
 
@@ -847,9 +736,6 @@ function isValidEpisode(value) {
 }
 
 function updateCurrentTrack(track, index, total) {
-  els.preparingAnimation.hidden = true;
-  els.progress.hidden = false;
-  els.playbackState.hidden = false;
   els.progress.textContent = `${index + 1} / ${total}`;
   els.currentCover.src = track.cover || FALLBACK_COVER;
   els.currentCover.alt = `Pochette de ${track.title}`;
@@ -893,35 +779,8 @@ function renderQueue(tracks, activeIndex) {
 }
 
 function showRadio(episode, tracks) {
-  els.preparingAnimation.hidden = true;
-  els.progress.hidden = false;
-  els.playbackState.hidden = false;
   els.radioTitle.textContent = getEpisodeTitle(episode);
   renderQueue(tracks, 0);
-  showScreen(els.radioScreen);
-}
-
-function showPreparingRadio(seedTrack) {
-  state.episode = null;
-  state.playableTracks = [];
-  els.radioTitle.textContent = "Radio Charlie";
-  els.progress.hidden = true;
-  els.playbackState.hidden = true;
-  els.preparingAnimation.hidden = false;
-  els.currentCover.src = seedTrack.album?.cover_medium || FALLBACK_COVER;
-  els.currentCover.alt = `Pochette de ${seedTrack.title}`;
-  els.currentArtist.textContent = seedTrack.artist?.name || "";
-  els.currentTitle.textContent = seedTrack.title || "";
-
-  if (seedTrack.link) {
-    els.currentLink.href = seedTrack.link;
-    els.currentLink.hidden = false;
-  } else {
-    els.currentLink.hidden = true;
-  }
-
-  els.queue.replaceChildren();
-  setPlaybackState("Charlie prépare l’émission…");
   showScreen(els.radioScreen);
 }
 
