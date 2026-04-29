@@ -159,7 +159,7 @@ function renderSearchResults(tracks) {
     artist.className = "result-artist";
     artist.textContent = track.artist.name;
     cta.className = "result-cta";
-    cta.textContent = "Lancer l’émission";
+    cta.textContent = "Lancer le podcast";
 
     copy.append(title, artist);
     card.append(cover, copy, cta);
@@ -194,7 +194,7 @@ async function startEpisode(seedTrack) {
     if (!isCurrentRun(runId)) return;
 
     if (!playableTracks.length) {
-      throw new Error("Aucune preview disponible pour cette émission.");
+      throw new Error("Aucune preview disponible pour ce podcast.");
     }
 
     state.episode = episode;
@@ -204,7 +204,7 @@ async function startEpisode(seedTrack) {
   } catch (error) {
     if (!isCurrentRun(runId)) return;
     showHome();
-    showSearchMessage(error.message || "Impossible de générer l’émission.");
+    showSearchMessage(error.message || "Impossible de générer le podcast.");
   }
 }
 
@@ -230,7 +230,7 @@ async function fetchPlan(seed) {
   }
 
   if (!isValidEpisode(body)) {
-    throw new Error("L’émission générée n’a pas le bon format.");
+    throw new Error("Le podcast généré n’a pas le bon format.");
   }
 
   return body;
