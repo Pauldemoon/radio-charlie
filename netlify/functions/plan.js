@@ -3,6 +3,11 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
 const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 5200);
+const configuredAiAttempts = Number(process.env.RADIO_CHARLIE_AI_ATTEMPTS || 2);
+const AI_ATTEMPTS = Number.isFinite(configuredAiAttempts)
+  ? Math.max(1, Math.min(3, configuredAiAttempts))
+  : 2;
+const QUALITY_ERROR_MESSAGE = "Qualité éditoriale insuffisante.";
 const PLAYLIST_ROLES = [
   "opener",
   "origin",
@@ -100,6 +105,10 @@ exports.handler = async (event) => {
 };
 
 async function createOpenAiEpisode(seed) {
+  return createEpisodeWithQualityRetry((attempt) => requestOpenAiEpisode(seed, attempt));
+}
+
+async function requestOpenAiEpisode(seed, attempt) {
   const response = await fetch(OPENAI_API_URL, {
     method: "POST",
     headers: {
@@ -125,7 +134,7 @@ async function createOpenAiEpisode(seed) {
         },
         {
           role: "user",
-          content: buildPrompt(seed),
+          content: buildPrompt(seed, attempt),
         },
       ],
     }),
@@ -138,16 +147,14 @@ async function createOpenAiEpisode(seed) {
   }
 
   const content = payload?.choices?.[0]?.message?.content;
-  const episode = normalizeEpisode(parseEpisode(content));
-
-  if (!isValidEpisode(episode)) {
-    throw new Error("Qualité éditoriale insuffisante.");
-  }
-
-  return episode;
+  return normalizeEpisode(parseEpisode(content));
 }
 
 async function createClaudeEpisode(seed) {
+  return createEpisodeWithQualityRetry((attempt) => requestClaudeEpisode(seed, attempt));
+}
+
+async function requestClaudeEpisode(seed, attempt) {
   const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
     headers: {
@@ -163,7 +170,7 @@ async function createClaudeEpisode(seed) {
       messages: [
         {
           role: "user",
-          content: buildPrompt(seed),
+          content: buildPrompt(seed, attempt),
         },
       ],
     }),
@@ -179,16 +186,35 @@ async function createClaudeEpisode(seed) {
     ?.filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("\n");
-  const episode = normalizeEpisode(parseEpisode(content));
 
-  if (!isValidEpisode(episode)) {
-    throw new Error("Qualité éditoriale insuffisante.");
-  }
-
-  return episode;
+  return normalizeEpisode(parseEpisode(content));
 }
 
-function buildPrompt({ artist, title, album }) {
+async function createEpisodeWithQualityRetry(createEpisode) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= AI_ATTEMPTS; attempt += 1) {
+    try {
+      const episode = await createEpisode(attempt);
+
+      if (isValidEpisode(episode)) {
+        return episode;
+      }
+
+      lastError = new Error(QUALITY_ERROR_MESSAGE);
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableGenerationError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError || new Error(QUALITY_ERROR_MESSAGE);
+}
+
+function buildPrompt({ artist, title, album }, attempt = 1) {
   return `
 Titre choisi par l’utilisateur :
 {
@@ -196,6 +222,7 @@ Titre choisi par l’utilisateur :
   "title": "${title}"
 }
 ${album ? `Album Deezer du morceau choisi : "${album}".` : ""}
+${attempt > 1 ? "IMPORTANT : la version précédente a été refusée car elle manquait de faits concrets. Recommence avec plus de dates, de contexte de sortie, de paroles, de production, de réception et d’anecdotes vérifiables dans chaque chronique." : ""}
 
 Tu es Radio Charlie, un moteur premium français de récit musical.
 
@@ -442,6 +469,17 @@ function isEditorialChronicle(value) {
   ].filter((pattern) => pattern.test(text)).length;
 
   return wordCount >= 90 && hasDate && concreteSignals >= 2;
+}
+
+function isRetryableGenerationError(error) {
+  const message = String(error?.message || "").toLowerCase();
+
+  return (
+    message.includes("qualité éditoriale") ||
+    message.includes("réponse ia vide") ||
+    message.includes("json") ||
+    message.includes("unexpected token")
+  );
 }
 
 function normalizePlaylistRole(role, index) {
