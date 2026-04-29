@@ -66,6 +66,7 @@ const state = {
   audioUnlocked: false,
   audioUnlockPromise: null,
   pendingAudioStart: null,
+  previewPreloads: new Map(),
   speechCache: new Map(),
 };
 
@@ -177,6 +178,7 @@ function renderSearchResults(tracks) {
 
     copy.append(title, artist);
     card.append(cover, copy, cta);
+    preloadPreviewAudio(track.preview);
     card.addEventListener("click", () => {
       primeAudioPlayback();
       startEpisode(track);
@@ -421,7 +423,11 @@ function playPreview(url) {
 }
 
 function playOpeningPreview(url) {
-  return playAudio(url, () => {}, 0, true);
+  const audio = getPreloadedPreviewAudio(url);
+  return playAudioElement(audio, {
+    cleanup: () => {},
+    shouldLoop: true,
+  });
 }
 
 function fadeOutCurrentPlayback(durationMs = 900) {
@@ -468,13 +474,25 @@ function primeAudioPlayback() {
 }
 
 function playAudio(url, cleanup = () => {}, maxDurationMs = 0, shouldLoop = false) {
+  return playAudioElement(sharedAudio, {
+    url,
+    cleanup,
+    maxDurationMs,
+    shouldLoop,
+    shouldResetSource: true,
+  });
+}
+
+function playAudioElement(
+  audio,
+  { url = "", cleanup = () => {}, maxDurationMs = 0, shouldLoop = false, shouldResetSource = false } = {},
+) {
   return new Promise((resolve) => {
-    if (!url) {
+    if (!audio || (!url && !audio.src)) {
       resolve();
       return;
     }
 
-    const audio = sharedAudio;
     delete audio.dataset.unlocking;
     state.audioUnlockPromise = null;
     let isWaitingForManualStart = false;
@@ -510,17 +528,29 @@ function playAudio(url, cleanup = () => {}, maxDurationMs = 0, shouldLoop = fals
       audio.loop = false;
       audio.removeEventListener("ended", done);
       audio.removeEventListener("error", done);
-      audio.removeAttribute("src");
-      audio.load();
+      if (shouldResetSource) {
+        audio.removeAttribute("src");
+        audio.load();
+      }
       cleanup();
       clearPlayback();
       resolve();
     });
 
     audio.pause();
-    audio.src = url;
+    if (url) {
+      audio.src = url;
+    } else {
+      try {
+        audio.currentTime = 0;
+      } catch (error) {
+        // Some remote streams do not allow seeking before metadata is ready.
+      }
+    }
     audio.loop = shouldLoop;
-    audio.load();
+    if (url || audio.readyState === 0) {
+      audio.load();
+    }
     audio.addEventListener("ended", done);
     audio.addEventListener("error", done);
     state.playback = {
@@ -541,6 +571,32 @@ function playAudio(url, cleanup = () => {}, maxDurationMs = 0, shouldLoop = fals
 
     startAudio();
   });
+}
+
+function preloadPreviewAudio(url) {
+  if (!url || state.previewPreloads.has(url)) {
+    return state.previewPreloads.get(url) || null;
+  }
+
+  const audio = new Audio(url);
+  audio.preload = "auto";
+  audio.setAttribute("playsinline", "");
+  audio.load();
+  state.previewPreloads.set(url, audio);
+  return audio;
+}
+
+function getPreloadedPreviewAudio(url) {
+  return state.previewPreloads.get(url) || preloadPreviewAudio(url) || sharedAudio;
+}
+
+function clearPreviewPreloads() {
+  state.previewPreloads.forEach((audio) => {
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+  });
+  state.previewPreloads.clear();
 }
 
 function fadeOutAudio(audio, durationMs = 900) {
@@ -614,6 +670,7 @@ function stopEpisode() {
   stopLoadingMessages();
   clearSpeechCache();
   clearPlayback();
+  clearPreviewPreloads();
   state.episode = null;
   state.playableTracks = [];
   els.searchInput.value = "";
@@ -645,6 +702,7 @@ function resetRun() {
 
 function resetSearch() {
   state.searchId += 1;
+  clearPreviewPreloads();
   return state.searchId;
 }
 
