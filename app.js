@@ -24,19 +24,15 @@ const els = {
   results: document.querySelector("#results"),
   loadingMessage: document.querySelector("#loading-message"),
   radioTitle: document.querySelector("#radio-title"),
-  radioAngle: document.querySelector("#radio-angle"),
-  radioIntro: document.querySelector("#radio-intro"),
   pauseButton: document.querySelector("#pause-button"),
   audioUnlockButton: document.querySelector("#audio-unlock-button"),
   skipButton: document.querySelector("#skip-button"),
   stopButton: document.querySelector("#stop-button"),
   restartButton: document.querySelector("#restart-button"),
   currentCover: document.querySelector("#current-cover"),
-  currentRole: document.querySelector("#current-role"),
   currentArtist: document.querySelector("#current-artist"),
   currentTitle: document.querySelector("#current-title"),
   currentLink: document.querySelector("#current-link"),
-  chronique: document.querySelector("#chronique"),
   playbackState: document.querySelector("#playback-state"),
   progress: document.querySelector("#progress"),
   queue: document.querySelector("#queue"),
@@ -70,6 +66,7 @@ const state = {
   audioUnlocked: false,
   audioUnlockPromise: null,
   pendingAudioStart: null,
+  speechCache: new Map(),
 };
 
 els.searchInput.focus();
@@ -205,6 +202,7 @@ async function startEpisode(seedTrack) {
 
     if (!isCurrentRun(runId)) return;
 
+    preloadSpeech(getTrackChronicle(episode.tracks[0])).catch(() => {});
     setLoadingMessage("Sélection des extraits…");
     const playableTracks = await enrichWithDeezer(episode.tracks);
 
@@ -256,35 +254,36 @@ async function fetchPlan(seed) {
 }
 
 async function enrichWithDeezer(tracks) {
-  const enriched = [];
+  const enriched = await Promise.all(
+    tracks.map(async (track) => {
+      if (track.preview) {
+        return {
+          ...track,
+          deezerId: track.deezerId || "",
+          cover: track.cover || FALLBACK_COVER,
+          link: track.link || "",
+        };
+      }
 
-  for (const track of tracks) {
-    if (track.preview) {
-      enriched.push({
-        ...track,
-        deezerId: track.deezerId || "",
-        cover: track.cover || FALLBACK_COVER,
-        link: track.link || "",
-      });
-      continue;
-    }
+      const query = `${track.artist} ${track.title}`;
+      const results = await deezerSearch(query, 8).catch(() => []);
+      const match = findBestPlayableMatch(results, track);
 
-    const query = `${track.artist} ${track.title}`;
-    const results = await deezerSearch(query, 8).catch(() => []);
-    const match = findBestPlayableMatch(results, track);
+      if (match?.preview) {
+        return {
+          ...track,
+          deezerId: match.id,
+          preview: match.preview,
+          cover: match.album?.cover_medium || FALLBACK_COVER,
+          link: match.link || "",
+        };
+      }
 
-    if (match?.preview) {
-      enriched.push({
-        ...track,
-        deezerId: match.id,
-        preview: match.preview,
-        cover: match.album?.cover_medium || FALLBACK_COVER,
-        link: match.link || "",
-      });
-    }
-  }
+      return null;
+    }),
+  );
 
-  return enriched.slice(0, 8);
+  return enriched.filter(Boolean).slice(0, 8);
 }
 
 async function playEpisode(runId, tracks) {
@@ -295,7 +294,7 @@ async function playEpisode(runId, tracks) {
     const chronicle = getTrackChronicle(track);
     updateCurrentTrack(track, index, tracks.length);
     setPlaybackState("Charlie raconte…");
-    els.chronique.textContent = chronicle;
+    preloadNextSpeech(tracks, index);
 
     await speak(chronicle);
     if (!isCurrentRun(runId)) return;
@@ -317,30 +316,60 @@ async function playEpisode(runId, tracks) {
 }
 
 async function speak(text) {
+  const cleanSpeechText = String(text || "").trim();
+
   try {
-    const response = await fetch("/.netlify/functions/speak", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ text }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Voix Google TTS indisponible.");
-    }
-
-    const blob = await response.blob();
-
-    if (!blob.size || !blob.type.includes("audio")) {
-      throw new Error("Réponse audio Google TTS invalide.");
-    }
-
-    const audioUrl = URL.createObjectURL(blob);
+    const audioUrl = await preloadSpeech(cleanSpeechText);
+    state.speechCache.delete(cleanSpeechText);
     await playAudio(audioUrl, () => URL.revokeObjectURL(audioUrl));
   } catch (error) {
-    await speakWithBrowser(text);
+    state.speechCache.delete(cleanSpeechText);
+    await speakWithBrowser(cleanSpeechText);
   }
+}
+
+function preloadNextSpeech(tracks, currentIndex) {
+  const nextTrack = tracks[currentIndex + 1];
+
+  if (nextTrack) {
+    preloadSpeech(getTrackChronicle(nextTrack)).catch(() => {});
+  }
+}
+
+function preloadSpeech(text) {
+  const cleanSpeechText = String(text || "").trim();
+
+  if (!cleanSpeechText) {
+    return Promise.reject(new Error("Texte vide."));
+  }
+
+  if (!state.speechCache.has(cleanSpeechText)) {
+    state.speechCache.set(cleanSpeechText, fetchSpeechAudio(cleanSpeechText));
+  }
+
+  return state.speechCache.get(cleanSpeechText);
+}
+
+async function fetchSpeechAudio(text) {
+  const response = await fetch("/.netlify/functions/speak", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Voix ElevenLabs indisponible.");
+  }
+
+  const blob = await response.blob();
+
+  if (!blob.size || !blob.type.includes("audio")) {
+    throw new Error("Réponse audio ElevenLabs invalide.");
+  }
+
+  return URL.createObjectURL(blob);
 }
 
 function speakWithBrowser(text) {
@@ -533,6 +562,7 @@ function togglePause() {
 function stopEpisode() {
   resetRun();
   stopLoadingMessages();
+  clearSpeechCache();
   clearPlayback();
   state.episode = null;
   state.playableTracks = [];
@@ -549,9 +579,17 @@ function clearPlayback() {
   resetPauseControl(false, true);
 }
 
+function clearSpeechCache() {
+  state.speechCache.forEach((speechPromise) => {
+    speechPromise.then((audioUrl) => URL.revokeObjectURL(audioUrl)).catch(() => {});
+  });
+  state.speechCache.clear();
+}
+
 function resetRun() {
   state.runId += 1;
   interruptCurrentStep();
+  clearSpeechCache();
   return state.runId;
 }
 
@@ -685,8 +723,6 @@ function isValidEpisode(value) {
     value &&
       typeof getEpisodeTitle(value) === "string" &&
       getEpisodeTitle(value).trim() &&
-      typeof value.angle === "string" &&
-      typeof value.intro === "string" &&
       Array.isArray(value.tracks) &&
       value.tracks.length === 8 &&
       value.tracks.every(
@@ -694,15 +730,13 @@ function isValidEpisode(value) {
           typeof track.artist === "string" &&
           typeof track.title === "string" &&
           typeof getTrackChronicle(track) === "string" &&
-          getTrackChronicle(track).trim() &&
-          typeof track.reason === "string",
+          getTrackChronicle(track).trim(),
       ),
   );
 }
 
 function updateCurrentTrack(track, index, total) {
   els.progress.textContent = `${index + 1} / ${total}`;
-  els.currentRole.textContent = getRoleLabel(getTrackRole(track, index));
   els.currentCover.src = track.cover || FALLBACK_COVER;
   els.currentCover.alt = `Pochette de ${track.title}`;
   els.currentArtist.textContent = track.artist;
@@ -725,24 +759,18 @@ function renderQueue(tracks, activeIndex) {
     const item = document.createElement("li");
     const number = document.createElement("em");
     const copy = document.createElement("span");
-    const role = document.createElement("span");
     const title = document.createElement("span");
     const artist = document.createElement("span");
-    const reason = document.createElement("span");
 
     item.className = index === activeIndex ? "is-active" : "";
     number.className = "queue-index";
     number.textContent = String(index + 1);
-    role.className = "queue-role";
-    role.textContent = getRoleLabel(getTrackRole(track, index));
     title.className = "queue-title";
     title.textContent = track.title;
     artist.className = "queue-artist";
     artist.textContent = track.artist;
-    reason.className = "queue-reason";
-    reason.textContent = track.reason;
 
-    copy.append(role, title, artist, reason);
+    copy.append(title, artist);
     item.append(number, copy);
     fragment.append(item);
   });
@@ -752,8 +780,6 @@ function renderQueue(tracks, activeIndex) {
 
 function showRadio(episode, tracks) {
   els.radioTitle.textContent = getEpisodeTitle(episode);
-  els.radioAngle.textContent = episode.angle;
-  els.radioIntro.textContent = episode.intro;
   renderQueue(tracks, 0);
   showScreen(els.radioScreen);
 }

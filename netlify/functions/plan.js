@@ -2,7 +2,7 @@ const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
-const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 3000);
+const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 4200);
 const PLAYLIST_ROLES = [
   "opener",
   "origin",
@@ -16,11 +16,9 @@ const PLAYLIST_ROLES = [
 const EPISODE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "angle", "intro", "tracks"],
+  required: ["title", "tracks"],
   properties: {
     title: { type: "string" },
-    angle: { type: "string" },
-    intro: { type: "string" },
     tracks: {
       type: "array",
       minItems: 8,
@@ -28,12 +26,11 @@ const EPISODE_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["role", "artist", "title", "reason", "chronicle"],
+        required: ["role", "artist", "title", "chronicle"],
         properties: {
           role: { type: "string", enum: PLAYLIST_ROLES },
           artist: { type: "string" },
           title: { type: "string" },
-          reason: { type: "string" },
           chronicle: { type: "string" },
         },
       },
@@ -224,9 +221,8 @@ Le titre choisi n’est pas forcément le sujet central.
 Il sert de premier signal : à toi d’en tirer le parcours humain le plus intéressant.
 
 L’émission doit contenir :
-- un angle éditorial humain fort ;
 - une playlist de 8 titres ;
-- une longue chronique avant chaque titre ;
+- une chronique éditoriale riche avant chaque titre ;
 - chaque chronique doit apprendre quelque chose de concret ;
 - chaque chronique doit apporter des informations nouvelles, sans répéter une autre chronique.
 
@@ -252,7 +248,7 @@ Règles pour la playlist :
 - la playlist doit être culturellement cohérente ;
 - privilégie la même langue, la même scène, la même époque ou une scène voisine clairement justifiée ;
 - ne saute pas au hasard du rap français au rap américain, ou d’une scène à une autre, sans que l’angle l’explique clairement ;
-- chaque titre doit avoir une raison éditoriale précise d’être là ;
+- chaque titre doit avoir une raison éditoriale précise d’être là, qui doit se comprendre dans sa chronique ;
 - évite les playlists génériques de "même genre" ;
 - choisis des titres assez connus ou disponibles pour être retrouvés via l’API Deezer.
 
@@ -274,13 +270,12 @@ Chaque titre doit jouer un rôle précis dans le parcours, dans cet ordre exact 
 8. "closing statement" : ferme l’émission avec une idée forte, pas seulement avec un morceau calme.
 
 Le champ "role" de chaque piste doit reprendre exactement l’un de ces 8 rôles, dans cet ordre.
-Le champ "reason" doit expliquer pourquoi ce titre remplit ce rôle précis dans l’épisode.
-
 Règles pour les chroniques :
-Chaque chronique doit être assez dense pour être utile, mais assez courte pour une émission fluide.
-Objectif MVP privé : 70 à 100 mots par chronique.
+Chaque chronique doit être dense, utile et assez développée pour porter une vraie écoute radio.
+Objectif MVP privé : 100 à 140 mots par chronique.
+Chaque chronique doit ressembler à un mini-récit oral, pas à une notice : une accroche humaine, un fait concret, puis une idée qui donne envie d’écouter le morceau autrement.
 
-Chaque chronique doit inclure au moins 3 catégories différentes parmi :
+Chaque chronique doit inclure au moins 4 catégories différentes parmi :
 - contexte de sortie : date, album, moment de carrière ;
 - situation de l’artiste : pression, controverse, percée, déclin, réinvention ;
 - paroles : ce que la chanson dit réellement ;
@@ -295,6 +290,7 @@ Chaque paragraphe doit introduire un nouveau type d’information.
 Ne répète pas la même idée avec d’autres mots.
 Ne répète pas l’angle principal dans chaque chronique.
 N’écris pas de remplissage.
+Privilégie les détails qui donnent de la chair : une époque, une scène, une tension biographique, une réception publique, un choix de studio, une phrase ou idée des paroles.
 
 Chaque chronique doit répondre :
 "Qu’est-ce que l’auditeur apprend ici qu’il ne savait pas avant ?"
@@ -326,22 +322,19 @@ N’ajoute aucun commentaire, aucun markdown, aucun texte hors JSON.
 Schéma :
 {
   "title": "string",
-  "angle": "string",
-  "intro": "string",
   "tracks": [
     {
       "role": "opener",
       "artist": "string",
       "title": "string",
-      "reason": "pourquoi ce titre appartient à l’émission",
-      "chronicle": "chronique orale française dense, 70 à 100 mots"
+      "chronicle": "chronique orale française riche, 100 à 140 mots"
     }
   ]
 }
 
 Auto-vérification avant de répondre :
 Pour chaque chronique, vérifie :
-- y a-t-il au moins une date précise, un album, un producteur, un label, un lieu, une controverse, un fait de classement ou un détail vérifiable ?
+- y a-t-il au moins deux détails concrets parmi date précise, album, producteur, label, lieu, controverse, fait de classement, réception ou détail vérifiable ?
 - contient-elle des paroles ou du contexte, pas seulement de la production ?
 - évite-t-elle de répéter une autre chronique ?
 - ressemble-t-elle à une vraie histoire, pas à une description ?
@@ -388,8 +381,6 @@ function isValidEpisode(episode) {
   return Boolean(
     episode &&
       typeof episode.title === "string" &&
-      typeof episode.angle === "string" &&
-      typeof episode.intro === "string" &&
       Array.isArray(episode.tracks) &&
       episode.tracks.length === 8 &&
       episode.tracks.every(
@@ -398,15 +389,11 @@ function isValidEpisode(episode) {
           typeof track.title === "string" &&
           typeof track.chronicle === "string" &&
           typeof track.role === "string" &&
-          typeof track.reason === "string" &&
           cleanText(episode.title) &&
-          cleanText(episode.angle) &&
-          cleanText(episode.intro) &&
           PLAYLIST_ROLES.includes(track.role) &&
           cleanText(track.artist) &&
           cleanText(track.title) &&
-          cleanText(track.chronicle) &&
-          cleanText(track.reason),
+          cleanText(track.chronicle),
       ),
   );
 }
