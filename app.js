@@ -181,8 +181,7 @@ function renderSearchResults(tracks) {
     card.append(cover, copy, cta);
     preloadPreviewAudio(track.preview);
     card.addEventListener("click", () => {
-      primeAudioPlayback();
-      startEpisode(track);
+      startEpisode(track, primeAudioPlayback());
     });
     fragment.append(card);
   });
@@ -190,19 +189,25 @@ function renderSearchResults(tracks) {
   els.results.replaceChildren(fragment);
 }
 
-async function startEpisode(seedTrack) {
+async function startEpisode(seedTrack, audioReadyPromise = Promise.resolve()) {
   const runId = resetRun();
   showPreparingRadio(seedTrack);
+  const episodePromise = fetchPlan({
+    artist: seedTrack.artist.name,
+    title: seedTrack.title,
+    album: seedTrack.album?.title || "",
+    deezerArtistId: seedTrack.artist?.id || "",
+    deezerTrackId: seedTrack.id || "",
+  });
+  episodePromise.catch(() => {});
+  await audioReadyPromise.catch(() => {});
+
+  if (!isCurrentRun(runId)) return;
+
   playOpeningPreview(seedTrack.preview).catch(() => {});
 
   try {
-    const episode = await fetchPlan({
-      artist: seedTrack.artist.name,
-      title: seedTrack.title,
-      album: seedTrack.album?.title || "",
-      deezerArtistId: seedTrack.artist?.id || "",
-      deezerTrackId: seedTrack.id || "",
-    });
+    const episode = await episodePromise;
 
     if (!isCurrentRun(runId)) return;
 
@@ -424,11 +429,7 @@ function playPreview(url) {
 }
 
 function playOpeningPreview(url) {
-  const audio = getPreloadedPreviewAudio(url);
-  return playAudioElement(audio, {
-    cleanup: () => {},
-    shouldLoop: true,
-  });
+  return playAudio(url, () => {}, 0, true);
 }
 
 function fadeOutCurrentPlayback(durationMs = 900) {
@@ -628,6 +629,7 @@ function requestManualAudioStart(startAudio) {
     startAudio();
   };
   els.audioUnlockButton.hidden = false;
+  els.playbackState.hidden = false;
   els.playbackState.textContent = "Touchez « Activer le son » pour continuer";
 }
 
