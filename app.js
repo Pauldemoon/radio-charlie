@@ -216,7 +216,9 @@ async function startEpisode(seedTrack) {
     state.episode = episode;
     state.playableTracks = playableTracks;
     stopLoadingMessages();
-    interruptCurrentStep();
+    await fadeOutCurrentPlayback();
+    if (!isCurrentRun(runId)) return;
+
     showRadio(episode, playableTracks);
     await playEpisode(runId, playableTracks);
   } catch (error) {
@@ -422,6 +424,15 @@ function playOpeningPreview(url) {
   return playAudio(url, () => {}, 0, true);
 }
 
+function fadeOutCurrentPlayback(durationMs = 900) {
+  if (!state.playback?.fadeOut) {
+    interruptCurrentStep();
+    return Promise.resolve();
+  }
+
+  return state.playback.fadeOut(durationMs);
+}
+
 function primeAudioPlayback() {
   if (state.audioUnlocked) {
     return Promise.resolve();
@@ -516,6 +527,9 @@ function playAudio(url, cleanup = () => {}, maxDurationMs = 0, shouldLoop = fals
       stop() {
         done();
       },
+      fadeOut(durationMs = 900) {
+        return fadeOutAudio(audio, durationMs).then(done);
+      },
       pause() {
         audio.pause();
       },
@@ -526,6 +540,28 @@ function playAudio(url, cleanup = () => {}, maxDurationMs = 0, shouldLoop = fals
     resetPauseControl(false);
 
     startAudio();
+  });
+}
+
+function fadeOutAudio(audio, durationMs = 900) {
+  return new Promise((resolve) => {
+    const startVolume = audio.volume;
+    const startedAt = performance.now();
+
+    function tick(now) {
+      const progress = Math.min((now - startedAt) / durationMs, 1);
+      audio.volume = startVolume * (1 - progress);
+
+      if (progress < 1) {
+        window.requestAnimationFrame(tick);
+        return;
+      }
+
+      audio.volume = startVolume;
+      resolve();
+    }
+
+    window.requestAnimationFrame(tick);
   });
 }
 
