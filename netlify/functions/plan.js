@@ -2,6 +2,11 @@ const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
+const CLAUDE_FALLBACK_MODELS = [
+  ANTHROPIC_MODEL,
+  "claude-3-5-sonnet-latest",
+  "claude-3-5-haiku-latest",
+].filter((model, index, models) => model && models.indexOf(model) === index);
 const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 5200);
 const configuredAiAttempts = Number(process.env.RADIO_CHARLIE_AI_ATTEMPTS || 2);
 const AI_ATTEMPTS = Number.isFinite(configuredAiAttempts)
@@ -151,10 +156,26 @@ async function requestOpenAiEpisode(seed, attempt) {
 }
 
 async function createClaudeEpisode(seed) {
-  return createEpisodeWithQualityRetry((attempt) => requestClaudeEpisode(seed, attempt));
+  let lastError;
+
+  for (const model of CLAUDE_FALLBACK_MODELS) {
+    try {
+      return await createEpisodeWithQualityRetry((attempt) =>
+        requestClaudeEpisode(seed, attempt, model),
+      );
+    } catch (error) {
+      lastError = error;
+
+      if (!isModelAvailabilityError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError || new Error("Modèle Claude indisponible.");
 }
 
-async function requestClaudeEpisode(seed, attempt) {
+async function requestClaudeEpisode(seed, attempt, model) {
   const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
     headers: {
@@ -163,7 +184,7 @@ async function requestClaudeEpisode(seed, attempt) {
       "x-api-key": process.env.ANTHROPIC_API_KEY,
     },
     body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
+      model,
       max_tokens: AI_MAX_TOKENS,
       temperature: 0.72,
       system: SYSTEM_PROMPT,
@@ -514,6 +535,17 @@ function isRetryableGenerationError(error) {
     message.includes("réponse ia vide") ||
     message.includes("json") ||
     message.includes("unexpected token")
+  );
+}
+
+function isModelAvailabilityError(error) {
+  const message = String(error?.message || "").toLowerCase();
+
+  return (
+    message.includes("model") ||
+    message.includes("not available") ||
+    message.includes("not found") ||
+    message.includes("does not exist")
   );
 }
 
