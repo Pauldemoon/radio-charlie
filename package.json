@@ -1,0 +1,17 @@
+{
+  "name": "radio-charlie",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Radio Charlie podcast generator",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check app.js && node --check server.js && node --check netlify/functions/plan.js && node --check netlify/functions/speak.js && node --check netlify/functions/status.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

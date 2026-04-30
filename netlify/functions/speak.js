@@ -15,9 +15,8 @@ exports.handler = async (event) => {
     return json(405, { error: "Méthode non autorisée." });
   }
 
-  // Vérifie si les clés ElevenLabs sont présentes sur Netlify
   if (!process.env.ELEVENLABS_API_KEY || !process.env.ELEVENLABS_VOICE_ID) {
-    return json(500, { error: "Configuration ElevenLabs manquante sur Netlify." });
+    return json(500, { error: "Configuration ElevenLabs manquante." });
   }
 
   let body;

@@ -5,6 +5,7 @@ const FALLBACK_COVER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Crect width='600' height='600' fill='%23141312'/%3E%3Ccircle cx='300' cy='300' r='190' fill='%23d8b36a' fill-opacity='.16'/%3E%3Ccircle cx='300' cy='300' r='78' fill='%23d8b36a' fill-opacity='.42'/%3E%3C/svg%3E";
 
 const LOADING_MESSAGE = "Création du podcast en cours…";
+const API_BASE_URL = cleanApiBaseUrl(window.RADIO_CHARLIE_API_BASE_URL || "");
 
 const els = {
   homeScreen: document.querySelector("#home-screen"),
@@ -215,7 +216,7 @@ async function fetchPlan(seed) {
     );
   }
 
-  const response = await fetch("/.netlify/functions/plan", {
+  const response = await fetch(apiUrl("/plan"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -334,7 +335,7 @@ function preloadSpeech(text) {
 }
 
 async function fetchSpeechAudio(text) {
-  const response = await fetch("/.netlify/functions/speak", {
+  const response = await fetch(apiUrl("/speak"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -817,6 +818,18 @@ function setPlaybackState(text) {
   if (!state.isPaused) {
     els.playbackState.textContent = text;
   }
+}
+
+function apiUrl(path) {
+  if (API_BASE_URL) {
+    return `${API_BASE_URL}${path}`;
+  }
+
+  return `/.netlify/functions${path}`;
+}
+
+function cleanApiBaseUrl(value) {
+  return String(value || "").replace(/\/+$/, "");
 }
 
 function setSearchBusy(isBusy) {
