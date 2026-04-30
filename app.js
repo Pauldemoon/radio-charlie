@@ -210,9 +210,9 @@ async function startEpisode(seedTrack) {
 }
 
 async function fetchPlan(seed) {
-  if (window.location.protocol === "file:") {
+  if (window.location.protocol === "file:" && !API_BASE_URL) {
     throw new Error(
-      "Pour utiliser Claude et Google TTS, double-clique sur “Lancer Radio Charlie.command”, puis ouvre l’adresse indiquée."
+      "Pour générer un podcast, ouvre l’app depuis Netlify, Railway ou configure l’URL API Railway."
     );
   }
 
