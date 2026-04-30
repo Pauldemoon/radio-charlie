@@ -23,7 +23,7 @@ exports.handler = async (event) => {
   return json(200, {
     aiProvider: hasClaude ? "claude" : hasOpenAi ? "openai" : "local",
     claudeConfigured: hasClaude,
-    claudeModel: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
+    claudeModel: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929",
     aiMaxTokens: Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 5200),
     voiceProvider:
       process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID ? "elevenlabs" : "browser",

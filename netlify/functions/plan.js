@@ -1,11 +1,11 @@
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
 const CLAUDE_FALLBACK_MODELS = [
   ANTHROPIC_MODEL,
-  "claude-3-5-sonnet-latest",
-  "claude-3-5-haiku-latest",
+  "claude-sonnet-4-20250514",
+  "claude-3-7-sonnet-latest",
 ].filter((model, index, models) => model && models.indexOf(model) === index);
 const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 5200);
 const configuredAiAttempts = Number(process.env.RADIO_CHARLIE_AI_ATTEMPTS || 2);
@@ -207,7 +207,7 @@ async function requestClaudeEpisode(seed, attempt, model) {
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(payload?.error?.message || "Erreur Claude.");
+    throw new Error(formatClaudeError(payload, model));
   }
 
   const content = payload?.content
@@ -547,6 +547,11 @@ function isModelAvailabilityError(error) {
     message.includes("not found") ||
     message.includes("does not exist")
   );
+}
+
+function formatClaudeError(payload, model) {
+  const message = payload?.error?.message || "Erreur Claude.";
+  return `Claude ${model}: ${message}`;
 }
 
 function normalizePlaylistRole(role, index) {
