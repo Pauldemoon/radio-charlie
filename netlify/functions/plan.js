@@ -1,7 +1,7 @@
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 5200);
 const configuredAiAttempts = Number(process.env.RADIO_CHARLIE_AI_ATTEMPTS || 2);
 const AI_ATTEMPTS = Number.isFinite(configuredAiAttempts)
@@ -167,10 +167,17 @@ async function requestClaudeEpisode(seed, attempt) {
       max_tokens: AI_MAX_TOKENS,
       temperature: 0.72,
       system: SYSTEM_PROMPT,
+      tools: [
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: 3,
+        },
+      ],
       messages: [
         {
           role: "user",
-          content: buildPrompt(seed, attempt),
+          content: buildPrompt(seed, attempt, { useWebSearch: true }),
         },
       ],
     }),
@@ -223,7 +230,19 @@ async function createEpisodeWithQualityRetry(createEpisode) {
   throw lastError || new Error(QUALITY_ERROR_MESSAGE);
 }
 
-function buildPrompt({ artist, title, album }, attempt = 1) {
+function buildPrompt({ artist, title, album }, attempt = 1, options = {}) {
+  const researchRules = options.useWebSearch
+    ? `
+Règles de recherche web obligatoires :
+- avant d’écrire les chroniques, utilise web_search ;
+- cherche des informations factuelles sur l’artiste et le morceau choisi ;
+- cherche le contexte de production, l’album, l’année, les collaborateurs, la réception, les paroles ou la scène associée ;
+- utilise uniquement des faits trouvés dans les résultats ou des connaissances générales très établies ;
+- si la recherche ne donne rien d’utile, reste prudent et général, n’invente jamais ;
+- ne raconte pas tes recherches dans la réponse finale : retourne uniquement le JSON demandé.
+`
+    : "";
+
   return `
 Titre choisi par l’utilisateur :
 {
@@ -232,6 +251,7 @@ Titre choisi par l’utilisateur :
 }
 ${album ? `Album Deezer du morceau choisi : "${album}".` : ""}
 ${attempt > 1 ? "IMPORTANT : la version précédente a été refusée car elle manquait de faits concrets. Recommence avec plus de dates, de contexte de sortie, de paroles, de production, de réception et d’anecdotes vérifiables dans chaque chronique." : ""}
+${researchRules}
 
 Tu es Radio Charlie, un moteur premium français de récit musical.
 
@@ -525,6 +545,10 @@ function getAiUserMessage(error) {
 
   if (lowerMessage.includes("model")) {
     return "Le modèle IA configuré n’est pas disponible pour cette clé.";
+  }
+
+  if (lowerMessage.includes("web_search") || lowerMessage.includes("web search")) {
+    return "La recherche web Claude n’est pas activée pour cette clé. Active Web Search dans la console Anthropic.";
   }
 
   if (lowerMessage.includes("qualité éditoriale")) {
