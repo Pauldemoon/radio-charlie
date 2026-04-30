@@ -158,18 +158,16 @@ async function requestOpenAiEpisode(seed, attempt) {
 async function createClaudeEpisode(seed) {
   let lastError;
 
-  for (const useWebSearch of [true, false]) {
-    for (const model of CLAUDE_FALLBACK_MODELS) {
-      try {
-        return await createEpisodeWithQualityRetry((attempt) =>
-          requestClaudeEpisode(seed, attempt, model, { useWebSearch }),
-        );
-      } catch (error) {
-        lastError = error;
+  for (const model of CLAUDE_FALLBACK_MODELS) {
+    try {
+      return await createEpisodeWithQualityRetry((attempt) =>
+        requestClaudeEpisode(seed, attempt, model),
+      );
+    } catch (error) {
+      lastError = error;
 
-        if (!isClaudeFallbackError(error)) {
-          throw error;
-        }
+      if (!isModelAvailabilityError(error)) {
+        throw error;
       }
     }
   }
@@ -177,17 +175,7 @@ async function createClaudeEpisode(seed) {
   throw lastError || new Error("Modèle Claude indisponible.");
 }
 
-async function requestClaudeEpisode(seed, attempt, model, options = {}) {
-  const tools = options.useWebSearch
-    ? [
-        {
-          type: "web_search_20250305",
-          name: "web_search",
-          max_uses: 3,
-        },
-      ]
-    : undefined;
-
+async function requestClaudeEpisode(seed, attempt, model) {
   const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
     headers: {
@@ -200,11 +188,17 @@ async function requestClaudeEpisode(seed, attempt, model, options = {}) {
       max_tokens: AI_MAX_TOKENS,
       temperature: 0.72,
       system: SYSTEM_PROMPT,
-      ...(tools ? { tools } : {}),
+      tools: [
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: 3,
+        },
+      ],
       messages: [
         {
           role: "user",
-          content: buildPrompt(seed, attempt, { useWebSearch: options.useWebSearch }),
+          content: buildPrompt(seed, attempt, { useWebSearch: true }),
         },
       ],
     }),
@@ -544,17 +538,14 @@ function isRetryableGenerationError(error) {
   );
 }
 
-function isClaudeFallbackError(error) {
+function isModelAvailabilityError(error) {
   const message = String(error?.message || "").toLowerCase();
 
   return (
     message.includes("model") ||
     message.includes("not available") ||
     message.includes("not found") ||
-    message.includes("does not exist") ||
-    message.includes("web_search") ||
-    message.includes("web search") ||
-    message.includes("tool")
+    message.includes("does not exist")
   );
 }
 
@@ -584,12 +575,12 @@ function getAiUserMessage(error) {
     return "La clé IA est invalide. Vérifie ANTHROPIC_API_KEY ou OPENAI_API_KEY.";
   }
 
-  if (lowerMessage.includes("web_search") || lowerMessage.includes("web search")) {
-    return "La recherche web Claude n’est pas activée pour cette clé. Active Web Search dans la console Anthropic.";
-  }
-
   if (lowerMessage.includes("model")) {
     return "Le modèle IA configuré n’est pas disponible pour cette clé.";
+  }
+
+  if (lowerMessage.includes("web_search") || lowerMessage.includes("web search")) {
+    return "La recherche web Claude n’est pas activée pour cette clé. Active Web Search dans la console Anthropic.";
   }
 
   if (lowerMessage.includes("qualité éditoriale")) {
