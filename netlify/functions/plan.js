@@ -260,7 +260,9 @@ Règles de recherche web obligatoires :
 - cherche le contexte de production, l’album, l’année, les collaborateurs, la réception, les paroles ou la scène associée ;
 - utilise uniquement des faits trouvés dans les résultats ou des connaissances générales très établies ;
 - si la recherche ne donne rien d’utile, reste prudent et général, n’invente jamais ;
-- ne raconte pas tes recherches dans la réponse finale : retourne uniquement le JSON demandé.
+- ne raconte pas tes recherches dans la réponse finale ;
+- n’inclus jamais de balises de citation, de références ou de marqueurs comme <cite> dans le JSON ;
+- retourne uniquement le JSON demandé.
 `
     : "";
 
@@ -470,7 +472,7 @@ function normalizeEpisode(episode) {
           artist: track.artist || "",
           title: track.title || "",
           reason: track.reason || "",
-          chronicle: track.chronicle || track.chronique || "",
+          chronicle: stripCitations(track.chronicle || track.chronique || ""),
         }))
       : episode.tracks,
   };
@@ -562,6 +564,14 @@ function cleanText(value) {
   return String(value || "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function stripCitations(value) {
+  return cleanText(
+    String(value || "")
+      .replace(/<cite\b[^>]*>/gi, "")
+      .replace(/<\/cite>/gi, ""),
+  );
 }
 
 function getAiUserMessage(error) {
