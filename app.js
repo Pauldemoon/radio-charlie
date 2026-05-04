@@ -347,26 +347,12 @@ async function enrichWithDeezer(tracks) {
 }
 
 async function playEpisode(runId, tracks) {
-  const intro = state.episode?.intro;
-
   // Prefetch ALL speech in parallel immediately so ElevenLabs calls overlap
-  // with the intro and each preview — by the time we need each chronicle it's
-  // already downloaded (or nearly so).
-  [
-    ...(intro ? [intro] : []),
-    ...tracks.map(getTrackChronicle),
-  ]
+  // with each preview — by the time we need each chronicle it's already downloaded.
+  tracks
+    .map(getTrackChronicle)
     .filter(Boolean)
     .forEach((text) => preloadSpeech(text).catch(() => {}));
-
-  // Lire l'intro editoriale avant le premier morceau
-  if (intro) {
-    setPlaybackState("Charlie raconte…");
-    await speak(intro);
-    if (!isCurrentRun(runId)) return;
-    await wait(600);
-    if (!isCurrentRun(runId)) return;
-  }
 
   for (let index = 0; index < tracks.length; index += 1) {
     if (!isCurrentRun(runId)) return;

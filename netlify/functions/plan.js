@@ -35,11 +35,10 @@ const PLAYLIST_ROLES = [
 const EPISODE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "angle", "intro", "tracks"],
+  required: ["title", "angle", "tracks"],
   properties: {
     title: { type: "string" },
     angle: { type: "string" },
-    intro: { type: "string" },
     tracks: {
       type: "array",
       minItems: 6,
@@ -433,19 +432,12 @@ function buildPrompt(seed, attempt, options) {
   }
 
   // ── MISSION ────────────────────────────────────────────────────────────────
-  lines.push("MISSION : Radio Charlie. Playlist de 8 titres avec une raison d'exister.");
+  lines.push("MISSION : Radio Charlie. Playlist de 6 titres avec une raison d'exister.");
   lines.push("");
   lines.push(
-    "FIL CONDUCTEUR : une phrase qui explique pourquoi ces 8 titres ensemble — pas un genre, pas une epoque, pas 'Autour de X'.",
+    "FIL CONDUCTEUR : une phrase qui explique pourquoi ces 6 titres ensemble — pas un genre, pas une epoque, pas 'Autour de X'.",
   );
   lines.push("Le titre du podcast exprime ce fil.");
-  lines.push("");
-  lines.push("INTRO (2-3 phrases, lue a voix haute avant le premier morceau) :");
-  lines.push("- Presente le sujet et le voyage de ce podcast : qui, quoi, pourquoi maintenant");
-  lines.push("- Ton chaleureux de presentateur radio qui accueille l'auditeur");
-  lines.push("- Dit clairement de quoi on va parler et ce qu'on va decouvrir — pas de metaphore, pas de paradoxe");
-  lines.push("- Donne envie d'ecouter la suite");
-  lines.push('- Exemple pour Tame Impala : "Ce podcast suit la trajectoire de Kevin Parker, musicien australien qui a fabrique seul chaque note de ses albums depuis sa chambre de Perth. On va remonter dix ans de transformation — du rock psychedelique enregistre dans l\'isolement jusqu\'aux collaborations avec Dua Lipa et Justice. Un parcours qui dit quelque chose sur ce que la solitude peut produire."');
   lines.push("");
 
   // ── EXEMPLE PARFAIT ────────────────────────────────────────────────────────
@@ -466,19 +458,18 @@ function buildPrompt(seed, attempt, options) {
   lines.push("");
 
   // ── PLAYLIST ───────────────────────────────────────────────────────────────
-  lines.push("PLAYLIST : 6 titres qui documentent le voyage annonce dans l'intro.");
-  lines.push("Chaque titre est choisi parce qu'il illustre un moment de ce parcours.");
-  lines.push("Les roles structurent ce voyage dans cet ordre :");
-  lines.push("1. opener          - ouvre le voyage, pose le ton");
-  lines.push("2. origin          - la source : d'ou vient tout ca");
-  lines.push("3. rupture         - le moment ou quelque chose change");
-  lines.push("4. turning point   - le basculement central du voyage");
-  lines.push("5. consequence     - ce que ce basculement a produit");
-  lines.push("6. closing statement - ou on arrive a la fin du voyage");
+  lines.push("PLAYLIST : 6 titres. Melange OBLIGATOIRE d'artistes differents.");
+  lines.push("- Titre 1 : le morceau de depart (" + artist + " - " + title + ")");
+  lines.push("- Titres 2 a 6 : des artistes DIFFERENTS de " + artist + " — influences, contemporains, heritiers, connexions inattendues — choisis pour leur rapport au fil conducteur.");
+  lines.push("Ne pas mettre plusieurs titres du meme artiste. La diversite est la valeur de la playlist.");
   lines.push("");
-  lines.push(
-    "Regles : Titre 1 = le morceau choisi. Coherence avec le voyage de l'intro. Disponibles sur Deezer.",
-  );
+  lines.push("Les roles structurent le parcours :");
+  lines.push("1. opener          - pose le sujet, le ton");
+  lines.push("2. origin          - la source, l'influence fondatrice");
+  lines.push("3. rupture         - un artiste qui a rompu avec quelque chose");
+  lines.push("4. turning point   - le basculement, la connexion inattendue");
+  lines.push("5. consequence     - ce qui en a decoule, les heritiers");
+  lines.push("6. closing statement - ou ca nous amene");
   lines.push("");
 
   // ── REGLES CHRONIQUES ──────────────────────────────────────────────────────
@@ -489,15 +480,15 @@ function buildPrompt(seed, attempt, options) {
   lines.push("  En cas de doute, decris le contexte artistique (la periode, la scene, l'influence) plutot qu'un detail incertain.");
   lines.push("- Au moins une annee ou date concrete que tu sais etre exacte");
   lines.push("- Ton oral et vivant — pas scolaire, pas encyclopedique, pas de jargon critique");
-  lines.push("- Derniere phrase : ou ce titre se situe dans le voyage de ce podcast");
-  lines.push("- Chaque chronique apporte des faits nouveaux — zero repetition entre les 8 titres");
+  lines.push("- Derniere phrase : lien avec le fil conducteur du podcast");
+  lines.push("- Chaque chronique apporte des faits nouveaux — zero repetition entre les 6 titres");
   lines.push("");
 
   // ── FORMAT ─────────────────────────────────────────────────────────────────
   lines.push("FORMAT : JSON valide uniquement. Aucun texte hors JSON. Aucun markdown.");
   lines.push("");
   lines.push(
-    'Schema : { "title": "string", "angle": "string (le fil conducteur en une phrase)", "intro": "string (2-3 phrases parlees avant le premier morceau)", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 100-120 mots" }, ...] }',
+    'Schema : { "title": "string", "angle": "string (le fil conducteur en une phrase)", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 100-120 mots" }, ...] }',
   );
 
   return lines.join("\n");
@@ -522,7 +513,6 @@ function normalizeEpisode(episode) {
   return {
     title: episode.title || episode.radioTitle || "",
     angle: episode.angle || "",
-    intro: episode.intro || "",
     tracks: Array.isArray(episode.tracks)
       ? episode.tracks.map((track, index) => ({
           role: normalizePlaylistRole(track.role, index),
