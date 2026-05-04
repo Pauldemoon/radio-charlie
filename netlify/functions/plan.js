@@ -200,23 +200,21 @@ async function createDeepSeekEpisode(seed) {
 
 async function requestDeepSeekEpisode(seed, attempt) {
   const model = DEEPSEEK_MODEL;
-  const useThinking = process.env.DEEPSEEK_THINKING === "true";
-  console.log(`[plan/deepseek] attempt=${attempt} model=${model} thinking=${useThinking}`);
+  // deepseek-reasoner doesn't support temperature or response_format
+  const isReasoner = model.includes("reasoner");
+  console.log(`[plan/deepseek] attempt=${attempt} model=${model} reasoner=${isReasoner}`);
 
   const bodyObj = {
     model,
-    temperature: useThinking ? undefined : 0.78,
     max_tokens: AI_MAX_TOKENS,
-    response_format: { type: "json_object" },
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: buildPrompt(seed, attempt) },
     ],
   };
 
-  if (useThinking) {
-    // deepseek-reasoner: thinking mode (no temperature)
-    delete bodyObj.temperature;
+  if (!isReasoner) {
+    bodyObj.temperature = 0.78;
     bodyObj.response_format = { type: "json_object" };
   }
 
@@ -230,9 +228,21 @@ async function requestDeepSeekEpisode(seed, attempt) {
   });
 
   const payload = await response.json().catch(() => null);
-  if (DEBUG) console.log("[plan/deepseek] raw payload:", JSON.stringify(payload)?.slice(0, 500));
-  if (!response.ok) throw new Error(payload?.error?.message || "Erreur DeepSeek.");
+
+  if (!response.ok) {
+    const errMsg = payload?.error?.message || `DeepSeek HTTP ${response.status}`;
+    console.error(`[plan/deepseek] error status=${response.status} msg="${errMsg}"`);
+    throw new Error(errMsg);
+  }
+
   const content = payload?.choices?.[0]?.message?.content;
+
+  if (!content) {
+    console.error("[plan/deepseek] empty content payload=", JSON.stringify(payload)?.slice(0, 400));
+    throw new Error("Reponse IA vide.");
+  }
+
+  if (DEBUG) console.log("[plan/deepseek] content preview:", content.slice(0, 300));
   return normalizeEpisode(parseEpisode(content));
 }
 
@@ -364,7 +374,7 @@ function buildPrompt(seed, attempt, options) {
   lines.push("=== EXEMPLE PARFAIT (niveau attendu) ===");
   lines.push("Artiste: Daft Punk | Titre: Get Lucky | Role: opener");
   lines.push(
-    'Chronique: "En 2013, Daft Punk revient apres huit ans de silence avec un choix qui prend tout le monde a revers : plutot que de confirmer leur statut de robots de l\'electronique, ils enregistrent Random Access Memories entierement en instruments live, dans plusieurs studios dont Electric Lady a New York. Get Lucky est produit avec Pharrell Williams et Nile Rodgers, guitariste de Chic, approche specialement pour ce disque apres des annees sans collaboration majeure. Le titre sort en avril 2013, devient leur premier single a atteindre le top 10 britannique depuis vingt ans, et depasse 100 millions de streams en quelques semaines. Ce qui change tout : Nile Rodgers joue sa guitare sans click track pour retrouver le feeling flottant du funk des annees 70. Le paradoxe parfait : les architectes de la musique de machine choisissent la chair pour leur retour."',
+    'Chronique: "En 2013, Daft Punk revient apres huit ans de silence avec un choix inattendu : enregistrer Random Access Memories entierement en instruments live. Get Lucky nait de la rencontre avec Nile Rodgers, guitariste de Chic, et Pharrell Williams. Sorti en avril 2013, c\'est le premier top 10 britannique du duo depuis vingt ans. Detail cle : Rodgers joue sans click track pour retrouver le feeling flottant du funk 70s. Paradoxe parfait — les architectes de la musique de machine choisissent la chair pour leur retour."',
   );
   lines.push("");
   lines.push("=== EXEMPLE INTERDIT (ne jamais ecrire ca) ===");
@@ -392,7 +402,7 @@ function buildPrompt(seed, attempt, options) {
   );
   lines.push("");
 
-  lines.push("REGLES CHRONIQUES (120-160 mots chacune) :");
+  lines.push("REGLES CHRONIQUES (70-90 mots chacune — pas plus) :");
   lines.push("- Accroche : une scene, un moment, une tension (pas une definition)");
   lines.push("- Au moins une date ou annee precise");
   lines.push(
@@ -406,7 +416,7 @@ function buildPrompt(seed, attempt, options) {
   lines.push("FORMAT : JSON valide uniquement. Aucun texte hors JSON. Aucun markdown.");
   lines.push("");
   lines.push(
-    'Schema : { "title": "string", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 120-160 mots" }, ...] }',
+    'Schema : { "title": "string", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 70-90 mots" }, ...] }',
   );
 
   return lines.join("\n");
@@ -492,7 +502,7 @@ function isEditorialChronicle(value) {
     /\bsort(?:i|ie|ent)\b/i,
     /\bpubl(?:ie|ie|iee)\b/i,
   ].filter((pattern) => pattern.test(text)).length;
-  return wordCount >= 90 && hasDate && concreteSignals >= 2;
+  return wordCount >= 50 && hasDate && concreteSignals >= 2;
 }
 
 function isRetryableGenerationError(error) {
@@ -541,23 +551,24 @@ function stripCitations(value) {
 function getAiUserMessage(error) {
   const message = String(error?.message || "");
   const lower = message.toLowerCase();
-  if (lower.includes("quota") || lower.includes("billing"))
-    return "Le quota de la cle IA est epuise. Verifie le credit ou la facturation du compte.";
-  if (
-    lower.includes("invalid api key") ||
-    lower.includes("incorrect api key") ||
-    lower.includes("invalid x-api-key")
-  )
-    return "La cle IA est invalide. Verifie ANTHROPIC_API_KEY, DEEPSEEK_API_KEY ou OPENAI_API_KEY.";
-  if (lower.includes("model"))
-    return "Le modele IA configure n'est pas disponible pour cette cle.";
+  console.error(`[plan] getAiUserMessage raw="${message}"`);
+  if (lower.includes("quota") || lower.includes("billing") || lower.includes("insufficient balance") || lower.includes("credit"))
+    return "Le quota ou le credit DeepSeek est epuise. Recharge le compte sur platform.deepseek.com.";
+  if (lower.includes("invalid api key") || lower.includes("incorrect api key") || lower.includes("invalid x-api-key") || lower.includes("authentication") || lower.includes("unauthorized") || lower.includes("401"))
+    return "La cle API est invalide ou expiree. Verifie DEEPSEEK_API_KEY dans Railway.";
+  if (lower.includes("model") || lower.includes("not found") || lower.includes("404"))
+    return "Le modele IA n'existe pas ou n'est pas accessible. Verifie DEEPSEEK_MODEL dans Railway.";
+  if (lower.includes("rate limit") || lower.includes("429") || lower.includes("too many"))
+    return "Trop de requetes. Attends quelques secondes et reessaie.";
   if (lower.includes("web_search") || lower.includes("web search"))
-    return "La recherche web Claude n'est pas activee pour cette cle.";
+    return "La recherche web n'est pas activee pour cette cle.";
   if (lower.includes("qualite"))
-    return "L'IA a produit un podcast trop pauvre en faits. Relance la generation pour une version plus documentee.";
-  if (lower.includes("abort") || lower.includes("timeout"))
-    return "L'IA n'a pas repondu dans les temps. Reessaie dans quelques instants.";
-  return "L'IA ne repond pas pour le moment.";
+    return "Podcast trop pauvre en faits. Relance pour une version plus documentee.";
+  if (lower.includes("abort") || lower.includes("timeout") || lower.includes("socket") || lower.includes("503") || lower.includes("502"))
+    return "DeepSeek ne repond pas. Reessaie dans quelques instants.";
+  if (lower.includes("json") || lower.includes("unexpected token") || lower.includes("syntax"))
+    return "La reponse de l'IA n'etait pas du JSON valide. Reessaie.";
+  return `Erreur IA : ${message.slice(0, 120)}`;
 }
 
 function json(statusCode, body) {

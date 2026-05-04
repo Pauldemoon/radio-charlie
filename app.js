@@ -240,10 +240,9 @@ async function startEpisode(seedTrack) {
   const runId = resetRun();
   state.lastSeedTrack = seedTrack;
   showLoading();
-  setLoadingStep("Analyse du morceau…");
+  setLoadingStep("Radio Charlie rédige les chroniques…");
 
   try {
-    setLoadingStep("Radio Charlie rédige les chroniques…");
     const episode = await fetchPlan({
       artist: seedTrack.artist.name,
       title: seedTrack.title,
@@ -254,21 +253,31 @@ async function startEpisode(seedTrack) {
 
     if (!isCurrentRun(runId)) return;
 
+    // Preload TTS for track 0 immediately
     preloadSpeech(getTrackChronicle(episode.tracks[0])).catch(() => {});
 
-    setLoadingStep("Recherche des previews musicales…");
-    const playableTracks = await enrichWithDeezer(episode.tracks);
+    // Show radio screen right away with placeholder covers — no more loading screen
+    const placeholders = episode.tracks.map((t) => ({
+      ...t,
+      cover: FALLBACK_COVER,
+      preview: null,
+      link: "",
+    }));
+    state.episode = episode;
+    state.playableTracks = placeholders;
+    showRadio(episode, placeholders);
 
+    // Enrich with Deezer in background (fast, ~3-5s)
+    const playableTracks = await enrichWithDeezer(episode.tracks);
     if (!isCurrentRun(runId)) return;
 
     if (!playableTracks.length) {
       throw new Error("Aucune preview disponible pour ce podcast.");
     }
 
-    state.episode = episode;
+    // Update queue with real covers + start playback
     state.playableTracks = playableTracks;
-    setLoadingStep("");
-    showRadio(episode, playableTracks);
+    renderQueue(playableTracks, 0);
     await playEpisode(runId, playableTracks);
   } catch (error) {
     if (!isCurrentRun(runId)) return;
