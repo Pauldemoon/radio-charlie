@@ -50,12 +50,12 @@ exports.handler = async (event) => {
 
     const audioStream = await client.textToSpeech.convert(voiceId, {
       text,
-      model_id: ELEVENLABS_MODEL,
-      voice_settings: {
+      modelId: ELEVENLABS_MODEL,
+      voiceSettings: {
         stability: VOICE_STABILITY,
-        similarity_boost: VOICE_SIMILARITY,
+        similarityBoost: VOICE_SIMILARITY,
         style: VOICE_STYLE,
-        use_speaker_boost: true,
+        useSpeakerBoost: true,
         speed: VOICE_SPEED,
       },
     });

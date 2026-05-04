@@ -889,6 +889,9 @@ function renderQueue(tracks, activeIndex) {
 
 function showRadio(episode, tracks) {
   els.radioTitle.textContent = getEpisodeTitle(episode);
+  els.currentCover.src = FALLBACK_COVER;
+  els.currentArtist.textContent = "";
+  els.currentTitle.textContent = "";
   renderQueue(tracks, 0);
   showScreen(els.radioScreen);
 }

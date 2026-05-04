@@ -478,6 +478,7 @@ function buildPrompt(seed, attempt, options) {
   lines.push("- PRIORITE : des faits precis et verifiables — date, nom, chiffre, anecdote documentee");
   lines.push("- INTERDIT : inventer ou approximer un fait. Si tu n'es pas certain, ne l'inclus pas.");
   lines.push("  En cas de doute, decris le contexte artistique (la periode, la scene, l'influence) plutot qu'un detail incertain.");
+  lines.push("- INTERDIT : mentionner un sample sauf si tu l'as trouve dans les informations de recherche fournies. Les samples sont tres souvent inventes par les IA. Ne jamais ecrire 'samplait', 'built on a sample', 'emprunte a', 'base sur un sample de' sans source certaine.");
   lines.push("- Au moins une annee ou date concrete que tu sais etre exacte");
   lines.push("- Ton oral et vivant — pas scolaire, pas encyclopedique, pas de jargon critique");
   lines.push("- Derniere phrase : lien avec le fil conducteur du podcast");
