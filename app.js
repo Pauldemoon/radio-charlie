@@ -274,11 +274,22 @@ async function enrichWithDeezer(tracks) {
 }
 
 async function playEpisode(runId, tracks) {
-  // Prefetch ALL speech (chronicles + transitions) in parallel at episode start
+  // Prefetch ALL speech (intro + chronicles + transitions) in parallel at episode start
+  const intro = getEpisodeIntro(state.episode);
   tracks.forEach((t) => {
     prefetchSpeech(getTrackChronicle(t));
     if (t.transition) prefetchSpeech(t.transition);
   });
+
+  // Spoken intro — sets the story before the first track
+  if (intro) {
+    updateCurrentTrack(tracks[0], 0, tracks.length);
+    setPlaybackState("Ouverture antenne");
+    await speak(intro);
+    if (!isCurrentRun(runId)) return;
+    await wait(300);
+    if (!isCurrentRun(runId)) return;
+  }
 
   for (let index = 0; index < tracks.length; index += 1) {
     if (!isCurrentRun(runId)) return;

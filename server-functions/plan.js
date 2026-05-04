@@ -799,7 +799,7 @@ Dans les valeurs textuelles du JSON, n’utilise jamais le caractère guillemet 
 Ne cite pas de paroles exactes entre guillemets.
 Si tu dois rapporter une idée de paroles, paraphrase sans guillemets.
 Évite les retours à la ligne à l’intérieur des champs texte.
-Le champ "intro" est une ouverture antenne de 28 à 42 mots : elle pose l’angle sans résumer toute l’émission.
+Le champ "intro" est une ouverture antenne parlée de 28 à 42 mots. Elle pose la promesse de l’histoire — pas un résumé, pas une liste. Elle donne envie d’écouter. Elle peut commencer par un fait frappant, une date, une image concrète. C’est la première phrase que l’auditeur entend.
 
 Schéma :
 {
