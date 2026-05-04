@@ -350,7 +350,7 @@ async function playEpisode(runId, tracks) {
   // Prefetch ALL speech in parallel immediately so ElevenLabs calls overlap
   // with each preview — by the time we need each chronicle it's already downloaded.
   tracks
-    .map(getTrackChronicle)
+    .flatMap((t) => [t.transition, getTrackChronicle(t)])
     .filter(Boolean)
     .forEach((text) => preloadSpeech(text).catch(() => {}));
 
@@ -371,6 +371,16 @@ async function playEpisode(runId, tracks) {
     setPlaybackState("En cours d'écoute");
     await playPreview(track.preview);
     if (!isCurrentRun(runId)) return;
+
+    // Transition vers le morceau suivant (sauf après le dernier)
+    const nextTrack = tracks[index + 1];
+    if (nextTrack?.transition) {
+      await wait(400);
+      if (!isCurrentRun(runId)) return;
+      setPlaybackState("Charlie raconte…");
+      await speak(nextTrack.transition);
+      if (!isCurrentRun(runId)) return;
+    }
 
     await wait(600);
   }

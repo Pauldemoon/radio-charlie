@@ -52,6 +52,7 @@ const EPISODE_SCHEMA = {
           role: { type: "string", enum: PLAYLIST_ROLES },
           artist: { type: "string" },
           title: { type: "string" },
+          transition: { type: "string" },
           chronicle: { type: "string" },
         },
       },
@@ -471,6 +472,15 @@ function buildPrompt(seed, attempt, options) {
   lines.push("opener → origin → rupture → turning point → consequence → closing statement");
   lines.push("");
 
+  // ── TRANSITIONS ────────────────────────────────────────────────────────────
+  lines.push("TRANSITIONS (titres 2 a 6 uniquement — le titre 1 n'en a pas) :");
+  lines.push("- 1 phrase exactement, lue apres la fin du morceau precedent");
+  lines.push("- Font le lien entre ce qui vient de se jouer et ce qui vient — pas une introduction, un pont");
+  lines.push("- Ton naturel, comme un presentateur radio qui reprend la parole");
+  lines.push('- Exemples : "Ce que Kevin Parker a commence dans sa chambre, un producteur de Detroit allait le pousser jusqu\'au bout." / "C\'est exactement cet isolement volontaire qu\'on retrouve ici, mais pousse a l\'extreme." / "Quinze ans plus tot, tout venait de la."');
+  lines.push("- INTERDIT : commencer par 'Et maintenant', 'Passons a', 'Le prochain titre est'");
+  lines.push("");
+
   // ── REGLES CHRONIQUES ──────────────────────────────────────────────────────
   lines.push("REGLES CHRONIQUES (100-120 mots chacune) :");
   lines.push("- Ouvre sur une scene, un fait precis ou un moment — jamais une definition ni un adjectif");
@@ -520,6 +530,7 @@ function normalizeEpisode(episode) {
           artist: track.artist || "",
           title: track.title || "",
           reason: track.reason || "",
+          transition: index > 0 ? stripCitations(track.transition || "") : "",
           chronicle: stripCitations(track.chronicle || track.chronique || ""),
         }))
       : episode.tracks,
