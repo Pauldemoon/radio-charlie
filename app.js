@@ -347,8 +347,19 @@ async function enrichWithDeezer(tracks) {
 }
 
 async function playEpisode(runId, tracks) {
-  // Lire l'intro editoriale avant le premier morceau
   const intro = state.episode?.intro;
+
+  // Prefetch ALL speech in parallel immediately so ElevenLabs calls overlap
+  // with the intro and each preview — by the time we need each chronicle it's
+  // already downloaded (or nearly so).
+  [
+    ...(intro ? [intro] : []),
+    ...tracks.map(getTrackChronicle),
+  ]
+    .filter(Boolean)
+    .forEach((text) => preloadSpeech(text).catch(() => {}));
+
+  // Lire l'intro editoriale avant le premier morceau
   if (intro) {
     setPlaybackState("Charlie raconte…");
     await speak(intro);
@@ -364,7 +375,6 @@ async function playEpisode(runId, tracks) {
     const chronicle = getTrackChronicle(track);
     updateCurrentTrack(track, index, tracks.length);
     setPlaybackState("Charlie raconte…");
-    preloadNextSpeech(tracks, index);
 
     await speak(chronicle);
     if (!isCurrentRun(runId)) return;
@@ -832,7 +842,8 @@ function isValidEpisode(value) {
       typeof getEpisodeTitle(value) === "string" &&
       getEpisodeTitle(value).trim() &&
       Array.isArray(value.tracks) &&
-      value.tracks.length === 8 &&
+      value.tracks.length >= 1 &&
+      value.tracks.length <= 8 &&
       value.tracks.every(
         (track) =>
           typeof track.artist === "string" &&
