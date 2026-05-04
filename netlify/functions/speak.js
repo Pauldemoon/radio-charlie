@@ -94,16 +94,33 @@ exports.handler = async (event) => {
 /**
  * Prepares text for natural radio TTS rendering.
  * - Strips residual HTML tags
+ * - Converts ALL-CAPS words to Title Case (ElevenLabs reads them letter by letter otherwise)
  * - Converts ellipsis to em-dash pause (better ElevenLabs rendering)
+ * - Removes parenthetical year/remaster info that sounds bad when read aloud
  * - Cleans up multiple spaces
  * - Ensures a closing punctuation mark
  */
 function prepareForTTS(text) {
+  // Abbreviations/acronyms that should stay uppercase
+  const keepUpper = new Set([
+    "DJ", "MC", "TV", "FM", "AM", "UK", "US", "NY", "LA", "RNB",
+    "RAP", "BPM", "MTV", "BBC", "RFM", "NRJ", "ONU", "USA", "EP", "LP",
+  ]);
+
   return text
-    .replace(/<[^>]+>/g, "")       // strip HTML
-    .replace(/\.{3}/g, " — ") // ... -> em-dash pause
-    .replace(/\s{2,}/g, " ")       // collapse spaces
-    .replace(/([^.!?])$/, "$1.")   // ensure terminal punctuation
+    .replace(/<[^>]+>/g, "")                          // strip HTML
+    .replace(/\([^)]*(?:remaster|remix|live|edit|version)[^)]*\)/gi, "") // strip (2014 Remaster) etc.
+    .replace(/\b\S{2,}\b/gu, (word) => {              // ALL-CAPS → Title Case
+      const upper = word.toUpperCase();
+      const lower = word.toLowerCase();
+      if (word === upper && word !== lower && !keepUpper.has(word)) {
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      }
+      return word;
+    })
+    .replace(/\.{3}/g, " — ")                         // ... → pause naturelle
+    .replace(/\s{2,}/g, " ")                          // collapse spaces
+    .replace(/([^.!?])$/, "$1.")                      // ensure terminal punctuation
     .trim();
 }
 

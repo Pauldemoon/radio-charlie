@@ -200,19 +200,22 @@ async function createDeepSeekEpisode(seed) {
 
 async function requestDeepSeekEpisode(seed, attempt) {
   const model = DEEPSEEK_MODEL;
-  // deepseek-reasoner doesn't support temperature or response_format
-  const isReasoner = model.includes("reasoner");
-  console.log(`[plan/deepseek] attempt=${attempt} model=${model} reasoner=${isReasoner}`);
+  // Reasoning models: deepseek-reasoner, *-pro, *-r1 — they think before answering
+  // and need a much larger token budget (reasoning chain + JSON output)
+  const isReasoner = /reasoner|r1$|-pro$/i.test(model);
+  const maxTokens = isReasoner ? Math.max(AI_MAX_TOKENS, 8000) : AI_MAX_TOKENS;
+  console.log(`[plan/deepseek] attempt=${attempt} model=${model} reasoner=${isReasoner} maxTokens=${maxTokens}`);
 
   const bodyObj = {
     model,
-    max_tokens: AI_MAX_TOKENS,
+    max_tokens: maxTokens,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: buildPrompt(seed, attempt) },
     ],
   };
 
+  // Reasoning models don't support temperature or response_format
   if (!isReasoner) {
     bodyObj.temperature = 0.78;
     bodyObj.response_format = { type: "json_object" };
@@ -236,13 +239,19 @@ async function requestDeepSeekEpisode(seed, attempt) {
   }
 
   const content = payload?.choices?.[0]?.message?.content;
+  const reasoningContent = payload?.choices?.[0]?.message?.reasoning_content;
 
   if (!content) {
+    if (reasoningContent) {
+      // Reasoning model used all its tokens thinking — content is empty
+      console.error(`[plan/deepseek] reasoning model exhausted tokens: reasoning=${reasoningContent.length}chars, content empty`);
+      throw new Error("Le modele de reflexion a epuise son budget de tokens avant d'ecrire le JSON. Augmente RADIO_CHARLIE_AI_MAX_TOKENS.");
+    }
     console.error("[plan/deepseek] empty content payload=", JSON.stringify(payload)?.slice(0, 400));
     throw new Error("Reponse IA vide.");
   }
 
-  if (DEBUG) console.log("[plan/deepseek] content preview:", content.slice(0, 300));
+  if (DEBUG || isReasoner) console.log(`[plan/deepseek] content preview (${content.length}chars):`, content.slice(0, 200));
   return normalizeEpisode(parseEpisode(content));
 }
 
@@ -374,7 +383,7 @@ function buildPrompt(seed, attempt, options) {
   lines.push("=== EXEMPLE PARFAIT (niveau attendu) ===");
   lines.push("Artiste: Daft Punk | Titre: Get Lucky | Role: opener");
   lines.push(
-    'Chronique: "En 2013, Daft Punk revient apres huit ans de silence avec un choix inattendu : enregistrer Random Access Memories entierement en instruments live. Get Lucky nait de la rencontre avec Nile Rodgers, guitariste de Chic, et Pharrell Williams. Sorti en avril 2013, c\'est le premier top 10 britannique du duo depuis vingt ans. Detail cle : Rodgers joue sans click track pour retrouver le feeling flottant du funk 70s. Paradoxe parfait — les architectes de la musique de machine choisissent la chair pour leur retour."',
+    'Chronique: "En 2013, Daft Punk revient apres huit ans de silence avec un choix qui prend tout le monde a revers : plutot que de confirmer leur statut de pionniers de l\'electronique, ils enregistrent Random Access Memories entierement en instruments live. Get Lucky nait de la rencontre avec Nile Rodgers, guitariste de Chic, et Pharrell Williams, approche specialement pour ce disque. Sorti en avril 2013, le titre devient leur premier top 10 britannique depuis vingt ans et depasse cent millions de streams en quelques semaines. Detail cle : Rodgers joue sa guitare sans click track pour retrouver le feeling flottant du funk des annees 70. Paradoxe parfait — les architectes de la musique de machine choisissent la chair pour leur retour."',
   );
   lines.push("");
   lines.push("=== EXEMPLE INTERDIT (ne jamais ecrire ca) ===");
@@ -402,7 +411,7 @@ function buildPrompt(seed, attempt, options) {
   );
   lines.push("");
 
-  lines.push("REGLES CHRONIQUES (70-90 mots chacune — pas plus) :");
+  lines.push("REGLES CHRONIQUES (100-120 mots chacune) :");
   lines.push("- Accroche : une scene, un moment, une tension (pas une definition)");
   lines.push("- Au moins une date ou annee precise");
   lines.push(
@@ -416,7 +425,7 @@ function buildPrompt(seed, attempt, options) {
   lines.push("FORMAT : JSON valide uniquement. Aucun texte hors JSON. Aucun markdown.");
   lines.push("");
   lines.push(
-    'Schema : { "title": "string", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 70-90 mots" }, ...] }',
+    'Schema : { "title": "string", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 100-120 mots" }, ...] }',
   );
 
   return lines.join("\n");
@@ -502,7 +511,7 @@ function isEditorialChronicle(value) {
     /\bsort(?:i|ie|ent)\b/i,
     /\bpubl(?:ie|ie|iee)\b/i,
   ].filter((pattern) => pattern.test(text)).length;
-  return wordCount >= 50 && hasDate && concreteSignals >= 2;
+  return wordCount >= 70 && hasDate && concreteSignals >= 2;
 }
 
 function isRetryableGenerationError(error) {
