@@ -784,7 +784,7 @@ function isValidEpisode(value) {
 
 function updateCurrentTrack(track, index, total) {
   els.progress.textContent = `${index + 1} / ${total}`;
-  els.currentRole.textContent = getRoleLabel(getTrackRole(track, index));
+  els.currentRole.textContent = "";
   els.currentCover.src = track.cover || FALLBACK_COVER;
   els.currentCover.alt = `Pochette de ${track.title}`;
   els.currentArtist.textContent = track.artist;
@@ -807,21 +807,18 @@ function renderQueue(tracks, activeIndex) {
     const item = document.createElement("li");
     const number = document.createElement("em");
     const copy = document.createElement("span");
-    const role = document.createElement("span");
     const title = document.createElement("span");
     const artist = document.createElement("span");
 
     item.className = index === activeIndex ? "is-active" : "";
     number.className = "queue-index";
     number.textContent = String(index + 1);
-    role.className = "queue-role";
-    role.textContent = getRoleLabel(getTrackRole(track, index));
     title.className = "queue-title";
     title.textContent = track.title;
     artist.className = "queue-artist";
     artist.textContent = track.artist;
 
-    copy.append(role, title, artist);
+    copy.append(title, artist);
     item.append(number, copy);
     fragment.append(item);
   });
