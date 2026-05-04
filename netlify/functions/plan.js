@@ -15,8 +15,12 @@ const AI_ATTEMPTS = Number.isFinite(configuredAiAttempts)
   ? Math.max(1, Math.min(3, configuredAiAttempts))
   : 2;
 const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 55000);
+const WEB_SEARCH_USES = Math.max(0, Math.min(5, Number(process.env.RADIO_CHARLIE_WEB_SEARCH_USES || 2)));
 const DEBUG = process.env.RADIO_CHARLIE_DEBUG_AI === "true";
-const STRICT_QUALITY = process.env.RADIO_CHARLIE_STRICT_AI !== "false";
+// RADIO_CHARLIE_QUALITY_GATE=false désactive le filtre qualité (ancien nom : RADIO_CHARLIE_STRICT_AI)
+const STRICT_QUALITY =
+  process.env.RADIO_CHARLIE_QUALITY_GATE !== "false" &&
+  process.env.RADIO_CHARLIE_STRICT_AI !== "false";
 const QUALITY_ERROR_MESSAGE = "Qualite editoriale insuffisante.";
 const PLAYLIST_ROLES = [
   "opener",
@@ -265,7 +269,7 @@ async function requestClaudeEpisode(seed, attempt, model) {
       max_tokens: AI_MAX_TOKENS,
       temperature: 0.72,
       system: SYSTEM_PROMPT,
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: WEB_SEARCH_USES }],
       messages: [{ role: "user", content: buildPrompt(seed, attempt, { useWebSearch: true }) }],
     }),
   });
