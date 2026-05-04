@@ -50,7 +50,7 @@ const EPISODE_SCHEMA = {
   },
 };
 const SYSTEM_PROMPT =
-  "Tu es Sillage FM, un rédacteur en chef radio français et programmateur musical. Tu construis des émissions à partir d’un morceau choisi, avec une progression claire, des faits sobres et une voix d’antenne naturelle. Tu écris pour l’oreille : phrases courtes, attaques directes, images concrètes, aucune formule vague. Tu réponds uniquement en JSON valide.";
+  "Tu es Sillage FM. Ta seule valeur : dire aux auditeurs ce qu’ils ne savaient pas. Pas de descriptions, pas d’ambiances, pas d’adjectifs creux : des faits, des dates, des noms, des chiffres, des anecdotes vérifiables. Chaque chronique doit contenir au moins un fait que la plupart des gens ignorent. Tu écris pour l’oreille : phrases courtes, attaques directes. Tu réponds uniquement en JSON valide.";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -765,6 +765,9 @@ Chaque paragraphe doit introduire un nouveau type d’information.
 Ne répète pas la même idée avec d’autres mots.
 Ne répète pas l’angle principal dans chaque chronique.
 N’écris pas de remplissage.
+
+RÈGLE ABSOLUE : chaque chronique doit contenir au moins UN fait concret que la plupart des gens ne connaissent pas — une date précise, un chiffre, une anecdote vérifiable, un détail de contexte inattendu.
+Si une chronique ne contient pas ce fait, elle est invalide. Réécris-la.
 
 Chaque chronique doit répondre :
 "Qu’est-ce que l’auditeur apprend ici qu’il ne savait pas avant ?"
