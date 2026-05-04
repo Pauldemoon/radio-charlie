@@ -1,4 +1,4 @@
-const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
+const { ElevenLabsClient } = require("@elevenlabs/elevenlabs-js");
 
 // Voice settings — all overridable via env vars, with sensible radio defaults
 const ELEVENLABS_MODEL = process.env.ELEVENLABS_MODEL || "eleven_turbo_v2_5";
@@ -37,53 +37,41 @@ exports.handler = async (event) => {
   if (!rawText) return json(400, { error: "Le texte est vide." });
 
   const text = prepareForTTS(rawText);
+  const voiceId = process.env.ELEVENLABS_VOICE_ID;
 
   console.log(
-    `[speak] chars=${text.length} voiceId=${process.env.ELEVENLABS_VOICE_ID}` +
+    `[speak] chars=${text.length} voiceId=${voiceId}` +
     ` model=${ELEVENLABS_MODEL} stability=${VOICE_STABILITY} similarity=${VOICE_SIMILARITY}` +
     ` style=${VOICE_STYLE} speed=${VOICE_SPEED}`,
   );
 
   try {
-    const response = await fetch(
-      `${ELEVENLABS_API_URL}/${process.env.ELEVENLABS_VOICE_ID}`,
-      {
-        method: "POST",
-        headers: {
-          Accept: "audio/mpeg",
-          "Content-Type": "application/json",
-          "xi-api-key": process.env.ELEVENLABS_API_KEY,
-        },
-        body: JSON.stringify({
-          text,
-          model_id: ELEVENLABS_MODEL,
-          voice_settings: {
-            stability: VOICE_STABILITY,
-            similarity_boost: VOICE_SIMILARITY,
-            style: VOICE_STYLE,
-            use_speaker_boost: true,
-            // speed is supported by eleven_turbo_v2_5 and eleven_multilingual_v2
-            speed: VOICE_SPEED,
-          },
-        }),
+    const client = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
+
+    const audioStream = await client.textToSpeech.convert(voiceId, {
+      text,
+      model_id: ELEVENLABS_MODEL,
+      voice_settings: {
+        stability: VOICE_STABILITY,
+        similarity_boost: VOICE_SIMILARITY,
+        style: VOICE_STYLE,
+        use_speaker_boost: true,
+        speed: VOICE_SPEED,
       },
-    );
+    });
 
-    if (!response.ok) {
-      const errBody = await response.text().catch(() => "");
-      console.error(
-        `[speak] ElevenLabs error status=${response.status} body=${errBody.slice(0, 200)}`,
-      );
-      throw new Error(`Erreur ElevenLabs (${response.status})`);
+    // Collect the stream into a Buffer
+    const chunks = [];
+    for await (const chunk of audioStream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
-
-    const audioBuffer = await response.arrayBuffer();
+    const audioBuffer = Buffer.concat(chunks);
 
     return {
       statusCode: 200,
       headers: { ...corsHeaders, "Content-Type": "audio/mpeg" },
       isBase64Encoded: true,
-      body: Buffer.from(audioBuffer).toString("base64"),
+      body: audioBuffer.toString("base64"),
     };
   } catch (error) {
     console.error(`[speak] error message="${error.message}"`);
