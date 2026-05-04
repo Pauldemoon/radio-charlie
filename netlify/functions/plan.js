@@ -1,9 +1,9 @@
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
-const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
-const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
+const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat";
 const CLAUDE_FALLBACK_MODELS = [
   ANTHROPIC_MODEL,
   "claude-sonnet-4-20250514",
@@ -14,6 +14,9 @@ const configuredAiAttempts = Number(process.env.RADIO_CHARLIE_AI_ATTEMPTS || 2);
 const AI_ATTEMPTS = Number.isFinite(configuredAiAttempts)
   ? Math.max(1, Math.min(3, configuredAiAttempts))
   : 2;
+const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 55000);
+const DEBUG = process.env.RADIO_CHARLIE_DEBUG_AI === "true";
+const STRICT_QUALITY = process.env.RADIO_CHARLIE_STRICT_AI !== "false";
 const QUALITY_ERROR_MESSAGE = "Qualite editoriale insuffisante.";
 const PLAYLIST_ROLES = [
   "opener",
@@ -50,7 +53,6 @@ const EPISODE_SCHEMA = {
   },
 };
 
-// ASCII-only to avoid any encoding issues in the constant string
 const SYSTEM_PROMPT =
   "Tu es Radio Charlie, une redaction musicale francaise exigeante. Tu fabriques des chroniques radio avec anecdotes, dates, contexte historique, faits verifiables, paroles, production, reception et consequences culturelles. Ton style est oral, vivant, precis, jamais scolaire, jamais vague. Tu reponds uniquement en JSON valide.";
 
@@ -60,13 +62,25 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+/**
+ * Determine the active AI provider.
+ * Priority: AI_PROVIDER env var > key presence (Claude > DeepSeek > OpenAI)
+ */
+function resolveProvider() {
+  const explicit = (process.env.AI_PROVIDER || "").toLowerCase().trim();
+  if (explicit === "anthropic" || explicit === "claude") return "claude";
+  if (explicit === "deepseek") return "deepseek";
+  if (explicit === "openai") return "openai";
+  // Fall back to key presence
+  if (process.env.ANTHROPIC_API_KEY) return "claude";
+  if (process.env.DEEPSEEK_API_KEY) return "deepseek";
+  if (process.env.OPENAI_API_KEY) return "openai";
+  return null;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: corsHeaders,
-      body: "",
-    };
+    return { statusCode: 204, headers: corsHeaders, body: "" };
   }
 
   if (event.httpMethod !== "POST") {
@@ -74,7 +88,6 @@ exports.handler = async (event) => {
   }
 
   let body;
-
   try {
     body = JSON.parse(event.body || "{}");
   } catch (error) {
@@ -83,39 +96,27 @@ exports.handler = async (event) => {
 
   const artist = cleanText(body.artist);
   const title = cleanText(body.title);
-  const seed = {
-    artist,
-    title,
-    album: cleanText(body.album),
-  };
-  const hasAiProvider = Boolean(
-    process.env.ANTHROPIC_API_KEY ||
-    process.env.OPENAI_API_KEY ||
-    process.env.DEEPSEEK_API_KEY,
-  );
+  const seed = { artist, title, album: cleanText(body.album) };
 
   if (!artist || !title) {
     return json(400, { error: "artist et title sont requis." });
   }
 
-  if (!hasAiProvider) {
+  const provider = resolveProvider();
+  if (!provider) {
     return json(500, {
-      error: "Aucune IA configuree. Ajoute ANTHROPIC_API_KEY, OPENAI_API_KEY ou DEEPSEEK_API_KEY.",
+      error:
+        "Aucune IA configuree. Ajoute ANTHROPIC_API_KEY, DEEPSEEK_API_KEY ou OPENAI_API_KEY (ou definis AI_PROVIDER).",
     });
   }
 
-  const provider = process.env.ANTHROPIC_API_KEY
-    ? "claude"
-    : process.env.DEEPSEEK_API_KEY
-      ? "deepseek"
-      : "openai";
   console.log(`[plan] start provider=${provider} artist="${seed.artist}" title="${seed.title}"`);
 
   try {
     let episode;
-    if (process.env.ANTHROPIC_API_KEY) {
+    if (provider === "claude") {
       episode = await createClaudeEpisode(seed);
-    } else if (process.env.DEEPSEEK_API_KEY) {
+    } else if (provider === "deepseek") {
       episode = await createDeepSeekEpisode(seed);
     } else {
       episode = await createOpenAiEpisode(seed);
@@ -126,17 +127,35 @@ exports.handler = async (event) => {
     console.error(`[plan] error provider=${provider} message="${error.message}"`);
     return json(502, {
       error: getAiUserMessage(error),
-      detail: process.env.NODE_ENV === "development" ? error.message : undefined,
+      detail: DEBUG ? error.message : undefined,
     });
   }
 };
+
+// ---------------------------------------------------------------------------
+// Fetch with timeout
+// ---------------------------------------------------------------------------
+
+async function fetchWithTimeout(url, options) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// OpenAI
+// ---------------------------------------------------------------------------
 
 async function createOpenAiEpisode(seed) {
   return createEpisodeWithQualityRetry((attempt) => requestOpenAiEpisode(seed, attempt));
 }
 
 async function requestOpenAiEpisode(seed, attempt) {
-  const response = await fetch(OPENAI_API_URL, {
+  const response = await fetchWithTimeout(OPENAI_API_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -155,71 +174,70 @@ async function requestOpenAiEpisode(seed, attempt) {
         },
       },
       messages: [
-        {
-          role: "system",
-          content: SYSTEM_PROMPT,
-        },
-        {
-          role: "user",
-          content: buildPrompt(seed, attempt),
-        },
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: buildPrompt(seed, attempt) },
       ],
     }),
   });
 
   const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(payload?.error?.message || "Erreur OpenAI.");
-  }
-
+  if (!response.ok) throw new Error(payload?.error?.message || "Erreur OpenAI.");
   const content = payload?.choices?.[0]?.message?.content;
   return normalizeEpisode(parseEpisode(content));
 }
+
+// ---------------------------------------------------------------------------
+// DeepSeek  (OpenAI-compatible API)
+// ---------------------------------------------------------------------------
 
 async function createDeepSeekEpisode(seed) {
   return createEpisodeWithQualityRetry((attempt) => requestDeepSeekEpisode(seed, attempt));
 }
 
 async function requestDeepSeekEpisode(seed, attempt) {
-  console.log(`[plan/deepseek] attempt=${attempt} model=${DEEPSEEK_MODEL}`);
-  const response = await fetch(DEEPSEEK_API_URL, {
+  const model = DEEPSEEK_MODEL;
+  const useThinking = process.env.DEEPSEEK_THINKING === "true";
+  console.log(`[plan/deepseek] attempt=${attempt} model=${model} thinking=${useThinking}`);
+
+  const bodyObj = {
+    model,
+    temperature: useThinking ? undefined : 0.78,
+    max_tokens: AI_MAX_TOKENS,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: buildPrompt(seed, attempt) },
+    ],
+  };
+
+  if (useThinking) {
+    // deepseek-reasoner: thinking mode (no temperature)
+    delete bodyObj.temperature;
+    bodyObj.response_format = { type: "json_object" };
+  }
+
+  const response = await fetchWithTimeout(DEEPSEEK_API_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: DEEPSEEK_MODEL,
-      temperature: 0.78,
-      max_tokens: AI_MAX_TOKENS,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: SYSTEM_PROMPT,
-        },
-        {
-          role: "user",
-          content: buildPrompt(seed, attempt),
-        },
-      ],
-    }),
+    body: JSON.stringify(bodyObj),
   });
 
   const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(payload?.error?.message || "Erreur DeepSeek.");
-  }
-
+  if (DEBUG) console.log("[plan/deepseek] raw payload:", JSON.stringify(payload)?.slice(0, 500));
+  if (!response.ok) throw new Error(payload?.error?.message || "Erreur DeepSeek.");
   const content = payload?.choices?.[0]?.message?.content;
   return normalizeEpisode(parseEpisode(content));
 }
 
+// ---------------------------------------------------------------------------
+// Claude (Anthropic)
+// ---------------------------------------------------------------------------
+
 async function createClaudeEpisode(seed) {
   let lastError;
-
   for (const model of CLAUDE_FALLBACK_MODELS) {
     try {
       return await createEpisodeWithQualityRetry((attempt) =>
@@ -227,19 +245,15 @@ async function createClaudeEpisode(seed) {
       );
     } catch (error) {
       lastError = error;
-
-      if (!isModelAvailabilityError(error)) {
-        throw error;
-      }
+      if (!isModelAvailabilityError(error)) throw error;
     }
   }
-
   throw lastError || new Error("Modele Claude indisponible.");
 }
 
 async function requestClaudeEpisode(seed, attempt, model) {
   console.log(`[plan/claude] attempt=${attempt} model=${model}`);
-  const response = await fetch(ANTHROPIC_API_URL, {
+  const response = await fetchWithTimeout(ANTHROPIC_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -251,27 +265,13 @@ async function requestClaudeEpisode(seed, attempt, model) {
       max_tokens: AI_MAX_TOKENS,
       temperature: 0.72,
       system: SYSTEM_PROMPT,
-      tools: [
-        {
-          type: "web_search_20250305",
-          name: "web_search",
-          max_uses: 2,
-        },
-      ],
-      messages: [
-        {
-          role: "user",
-          content: buildPrompt(seed, attempt, { useWebSearch: true }),
-        },
-      ],
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+      messages: [{ role: "user", content: buildPrompt(seed, attempt, { useWebSearch: true }) }],
     }),
   });
 
   const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(formatClaudeError(payload, model));
-  }
+  if (!response.ok) throw new Error(formatClaudeError(payload, model));
 
   const content = payload?.content
     ?.filter((part) => part.type === "text")
@@ -281,6 +281,10 @@ async function requestClaudeEpisode(seed, attempt, model) {
   return normalizeEpisode(parseEpisode(content));
 }
 
+// ---------------------------------------------------------------------------
+// Quality retry loop
+// ---------------------------------------------------------------------------
+
 async function createEpisodeWithQualityRetry(createEpisode) {
   let lastError;
   let lastCompleteEpisode;
@@ -289,7 +293,7 @@ async function createEpisodeWithQualityRetry(createEpisode) {
     try {
       const episode = await createEpisode(attempt);
 
-      if (isValidEpisode(episode)) {
+      if (!STRICT_QUALITY || isValidEpisode(episode)) {
         return episode;
       }
 
@@ -301,60 +305,72 @@ async function createEpisodeWithQualityRetry(createEpisode) {
       lastError = new Error(QUALITY_ERROR_MESSAGE);
     } catch (error) {
       lastError = error;
-
-      if (!isRetryableGenerationError(error)) {
-        throw error;
-      }
+      if (!isRetryableGenerationError(error)) throw error;
     }
   }
 
-  if (lastCompleteEpisode) {
-    return lastCompleteEpisode;
-  }
-
+  if (lastCompleteEpisode) return lastCompleteEpisode;
   throw lastError || new Error(QUALITY_ERROR_MESSAGE);
 }
 
-/**
- * Construit le prompt utilisateur avec approche few-shot :
- * un exemple PARFAIT et un exemple INTERDIT pour guider le modele.
- */
+// ---------------------------------------------------------------------------
+// Prompt builder (few-shot)
+// ---------------------------------------------------------------------------
+
 function buildPrompt(seed, attempt, options) {
   const { artist, title, album } = seed;
   const useWebSearch = options && options.useWebSearch;
 
   const lines = [];
 
-  lines.push("Morceau choisi : " + artist + " - " + title + (album ? " (album : " + album + ")" : ""));
+  lines.push(
+    "Morceau choisi : " +
+      artist +
+      " - " +
+      title +
+      (album ? " (album : " + album + ")" : ""),
+  );
   lines.push("");
 
   if (attempt > 1) {
-    lines.push("ATTENTION : version precedente refusee. Chaque chronique DOIT contenir une date, une anecdote concrete et deux details verifiables (album, label, studio, paroles, classement, scene). Recommence avec plus de faits.");
+    lines.push(
+      "ATTENTION : version precedente refusee. Chaque chronique DOIT contenir une date, une anecdote concrete et deux details verifiables (album, label, studio, paroles, classement, scene). Recommence avec plus de faits.",
+    );
     lines.push("");
   }
 
   if (useWebSearch) {
     lines.push("ETAPE 1 - RECHERCHE (fais 1-2 recherches avant d'ecrire) :");
-    lines.push("- \"" + artist + " " + title + " contexte album production\"");
-    lines.push("- \"" + artist + " biographie date\"");
-    lines.push("Utilise seulement des faits trouves ou des connaissances tres etablies. Ne cite jamais un fait incertain - decris ce qu'on entend plutot qu'inventer. Ne mentionne pas tes recherches dans le JSON. Pas de balises <cite>.");
+    lines.push('- "' + artist + " " + title + ' contexte album production"');
+    lines.push('- "' + artist + ' biographie date"');
+    lines.push(
+      "Utilise seulement des faits trouves ou des connaissances tres etablies. Ne cite jamais un fait incertain. Ne mentionne pas tes recherches dans le JSON. Pas de balises <cite>.",
+    );
     lines.push("");
     lines.push("ETAPE 2 - REDACTION :");
     lines.push("");
   }
 
   lines.push("MISSION : Tu es Radio Charlie. Cree un podcast editorial de 8 titres.");
-  lines.push("Radio Charlie ne decrit pas la musique. Elle raconte ce qui existe au-dela du son : l'histoire, le contexte, les paroles, la scene, la production, l'impact.");
+  lines.push(
+    "Radio Charlie ne decrit pas la musique. Elle raconte ce qui existe au-dela du son : l'histoire, le contexte, les paroles, la scene, la production, l'impact.",
+  );
   lines.push("");
 
   lines.push("=== EXEMPLE PARFAIT (niveau attendu) ===");
   lines.push("Artiste: Daft Punk | Titre: Get Lucky | Role: opener");
-  lines.push("Chronique: \"En 2013, Daft Punk revient apres huit ans de silence avec un choix qui prend tout le monde a revers : plutot que de confirmer leur statut de robots de l'electronique, ils enregistrent Random Access Memories entierement en instruments live, dans plusieurs studios dont Electric Lady a New York. Get Lucky est produit avec Pharrell Williams et Nile Rodgers, guitariste de Chic, approche specialement pour ce disque apres des annees sans collaboration majeure. Le titre sort en avril 2013, devient leur premier single a atteindre le top 10 britannique depuis vingt ans, et depasse 100 millions de streams en quelques semaines. Ce qui change tout : Nile Rodgers joue sa guitare sans click track pour retrouver le feeling flottant du funk des annees 70. Le paradoxe parfait : les architectes de la musique de machine choisissent la chair pour leur retour.\"");
+  lines.push(
+    'Chronique: "En 2013, Daft Punk revient apres huit ans de silence avec un choix qui prend tout le monde a revers : plutot que de confirmer leur statut de robots de l\'electronique, ils enregistrent Random Access Memories entierement en instruments live, dans plusieurs studios dont Electric Lady a New York. Get Lucky est produit avec Pharrell Williams et Nile Rodgers, guitariste de Chic, approche specialement pour ce disque apres des annees sans collaboration majeure. Le titre sort en avril 2013, devient leur premier single a atteindre le top 10 britannique depuis vingt ans, et depasse 100 millions de streams en quelques semaines. Ce qui change tout : Nile Rodgers joue sa guitare sans click track pour retrouver le feeling flottant du funk des annees 70. Le paradoxe parfait : les architectes de la musique de machine choisissent la chair pour leur retour."',
+  );
   lines.push("");
   lines.push("=== EXEMPLE INTERDIT (ne jamais ecrire ca) ===");
-  lines.push("Chronique: \"Get Lucky est un titre incontournable de Daft Punk qui revele leur univers sonore unique. Le morceau illustre parfaitement leur talent pour melanger les genres et creer une atmosphere envoûtante. C'est une chanson qui transcende les epoques et touche tous les publics. Un chef-d'oeuvre de la musique electronique.\"");
+  lines.push(
+    "Chronique: \"Get Lucky est un titre incontournable de Daft Punk qui revele leur univers sonore unique. Le morceau illustre parfaitement leur talent pour melanger les genres et creer une atmosphere envoûtante. C'est une chanson qui transcende les epoques et touche tous les publics. Un chef-d'oeuvre de la musique electronique.\"",
+  );
   lines.push("");
-  lines.push("MOTS INTERDITS dans toutes les chroniques : emblematique, univers sonore, chef-d'oeuvre, incontournable, transcende, envoûtant, unique en son genre.");
+  lines.push(
+    "MOTS INTERDITS : emblematique, univers sonore, chef-d'oeuvre, incontournable, transcende, envoûtant, unique en son genre.",
+  );
   lines.push("");
 
   lines.push("PLAYLIST : 8 titres, roles dans cet ordre :");
@@ -367,13 +383,17 @@ function buildPrompt(seed, attempt, options) {
   lines.push("7. consequence - ce que cette bascule produit ensuite");
   lines.push("8. closing statement - ferme avec une idee forte");
   lines.push("");
-  lines.push("Regles : Titre 1 = le morceau choisi. Coherence culturelle (meme langue/scene). Titres disponibles sur Deezer.");
+  lines.push(
+    "Regles : Titre 1 = le morceau choisi. Coherence culturelle (meme langue/scene). Titres disponibles sur Deezer.",
+  );
   lines.push("");
 
   lines.push("REGLES CHRONIQUES (120-160 mots chacune) :");
   lines.push("- Accroche : une scene, un moment, une tension (pas une definition)");
   lines.push("- Au moins une date ou annee precise");
-  lines.push("- Au moins deux details concrets parmi : album, label, studio, producteur, paroles, classement, clip, sample, scene, collaboration, controverse");
+  lines.push(
+    "- Au moins deux details concrets parmi : album, label, studio, producteur, paroles, classement, clip, sample, scene, collaboration, controverse",
+  );
   lines.push("- Conclusion : pourquoi ce morceau est la dans ce podcast");
   lines.push("- Ton oral, vivant (France Culture + Radio Nova), jamais scolaire");
   lines.push("- Chaque chronique apporte des informations nouvelles (pas de repetition)");
@@ -381,16 +401,19 @@ function buildPrompt(seed, attempt, options) {
 
   lines.push("FORMAT : JSON valide uniquement. Aucun texte hors JSON. Aucun markdown.");
   lines.push("");
-  lines.push('Schema : { "title": "string", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 120-160 mots" }, ...] }');
+  lines.push(
+    'Schema : { "title": "string", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 120-160 mots" }, ...] }',
+  );
 
   return lines.join("\n");
 }
 
-function parseEpisode(content) {
-  if (!content) {
-    throw new Error("Reponse IA vide.");
-  }
+// ---------------------------------------------------------------------------
+// Parsing & validation
+// ---------------------------------------------------------------------------
 
+function parseEpisode(content) {
+  if (!content) throw new Error("Reponse IA vide.");
   return JSON.parse(
     content
       .trim()
@@ -400,10 +423,7 @@ function parseEpisode(content) {
 }
 
 function normalizeEpisode(episode) {
-  if (!episode) {
-    return episode;
-  }
-
+  if (!episode) return episode;
   return {
     title: episode.title || episode.radioTitle || "",
     angle: episode.angle || "",
@@ -450,7 +470,8 @@ function isCompleteEpisode(episode) {
 function isEditorialChronicle(value) {
   const text = cleanText(value);
   const wordCount = text.split(/\s+/).filter(Boolean).length;
-  const hasDate = /\b(?:19|20)\d{2}\b|\bannees?\s+(?:60|70|80|90|2000|2010|2020)\b/i.test(text);
+  const hasDate =
+    /\b(?:19|20)\d{2}\b|\bannees?\s+(?:60|70|80|90|2000|2010|2020)\b/i.test(text);
   const concreteSignals = [
     /\balbum\b/i,
     /\blabel\b/i,
@@ -465,15 +486,13 @@ function isEditorialChronicle(value) {
     /\bcollectif\b/i,
     /\bville\b/i,
     /\bsort(?:i|ie|ent)\b/i,
-    /\bpubl(?:ie|ié|iée)\b/i,
+    /\bpubl(?:ie|ie|iee)\b/i,
   ].filter((pattern) => pattern.test(text)).length;
-
   return wordCount >= 90 && hasDate && concreteSignals >= 2;
 }
 
 function isRetryableGenerationError(error) {
   const message = String(error?.message || "").toLowerCase();
-
   return (
     message.includes("qualite") ||
     message.includes("reponse ia vide") ||
@@ -484,7 +503,6 @@ function isRetryableGenerationError(error) {
 
 function isModelAvailabilityError(error) {
   const message = String(error?.message || "").toLowerCase();
-
   return (
     message.includes("model") ||
     message.includes("not available") ||
@@ -518,42 +536,30 @@ function stripCitations(value) {
 
 function getAiUserMessage(error) {
   const message = String(error?.message || "");
-  const lowerMessage = message.toLowerCase();
-
-  if (lowerMessage.includes("quota") || lowerMessage.includes("billing")) {
+  const lower = message.toLowerCase();
+  if (lower.includes("quota") || lower.includes("billing"))
     return "Le quota de la cle IA est epuise. Verifie le credit ou la facturation du compte.";
-  }
-
   if (
-    lowerMessage.includes("invalid api key") ||
-    lowerMessage.includes("incorrect api key") ||
-    lowerMessage.includes("invalid x-api-key")
-  ) {
-    return "La cle IA est invalide. Verifie ANTHROPIC_API_KEY ou OPENAI_API_KEY.";
-  }
-
-  if (lowerMessage.includes("model")) {
+    lower.includes("invalid api key") ||
+    lower.includes("incorrect api key") ||
+    lower.includes("invalid x-api-key")
+  )
+    return "La cle IA est invalide. Verifie ANTHROPIC_API_KEY, DEEPSEEK_API_KEY ou OPENAI_API_KEY.";
+  if (lower.includes("model"))
     return "Le modele IA configure n'est pas disponible pour cette cle.";
-  }
-
-  if (lowerMessage.includes("web_search") || lowerMessage.includes("web search")) {
-    return "La recherche web Claude n'est pas activee pour cette cle. Active Web Search dans la console Anthropic.";
-  }
-
-  if (lowerMessage.includes("qualite")) {
+  if (lower.includes("web_search") || lower.includes("web search"))
+    return "La recherche web Claude n'est pas activee pour cette cle.";
+  if (lower.includes("qualite"))
     return "L'IA a produit un podcast trop pauvre en faits. Relance la generation pour une version plus documentee.";
-  }
-
+  if (lower.includes("abort") || lower.includes("timeout"))
+    return "L'IA n'a pas repondu dans les temps. Reessaie dans quelques instants.";
   return "L'IA ne repond pas pour le moment.";
 }
 
 function json(statusCode, body) {
   return {
     statusCode,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json; charset=utf-8",
-    },
+    headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
     body: JSON.stringify(body),
   };
 }
