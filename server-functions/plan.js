@@ -663,41 +663,44 @@ Langue :
 - pas d’empilement d’adjectifs, pas de formule décorative.
 
 Ta mission :
-Créer un portrait d’artiste en 8 morceaux — un documentaire sonore sur UN artiste.
+Créer un documentaire sonore en 8 morceaux à partir du titre choisi.
 
-Le titre choisi est le point d’entrée. C’est lui qui donne la porte.
-La question n’est pas "quels morceaux vont bien ensemble ?" mais "quelle est l’histoire de cet artiste, et quels morceaux la racontent le mieux ?"
+Le titre choisi est la porte d’entrée. L’émission peut raconter :
+- le portrait d’un artiste : son parcours, ses bascules, ses contradictions ;
+- ou l’histoire d’un mouvement, d’une scène, d’un moment musical précis.
+
+C’est toi qui choisis l’angle le plus fort selon ce que tu sais de cet artiste et de son contexte.
+La seule règle : il doit y avoir une histoire à raconter, avec un début, une tension, et une résolution.
 
 L’émission doit contenir :
-- un angle humain sur cet artiste — pas son genre musical, mais un moment, une contradiction, une bascule dans sa vie ;
-- 8 morceaux qui tracent son parcours comme des chapitres ;
-- une chronique parlée avant chaque morceau, avec au moins un fait que l’auditeur ne savait pas ;
-- une progression narrative que l’auditeur ressent sans avoir lu le programme.
+- un angle narratif précis — pas un genre, une histoire ;
+- 8 morceaux qui tracent ce parcours comme des chapitres ;
+- une chronique avant chaque morceau, avec au moins un fait que l’auditeur ne savait pas ;
+- une progression que l’auditeur ressent sans avoir lu le programme.
 
 Règle d’or éditoriale :
-Chaque morceau doit répondre à : "À quel moment de la vie de cet artiste sommes-nous ici, et pourquoi ce morceau-là ?"
+Chaque morceau doit répondre à une question concrète :
+"Qu’est-ce que ce morceau révèle sur cette histoire, à cet endroit précis du récit ?"
 
-L’angle éditorial doit être humain, pas abstrait.
+L’angle doit être concret, pas abstrait.
 Évite :
 - "l’évolution du rap" ;
 - "le minimalisme en musique" ;
 - "les morceaux qui ont tout changé".
 
 Préfère :
-- un moment de carrière précis ;
-- une contradiction personnelle ;
-- une blessure ou une reconquête ;
-- une rencontre qui a changé la trajectoire ;
-- une controverse ou un basculement public.
+- un moment précis dans la carrière ou la vie d’un artiste ;
+- une scène musicale à un instant donné (Paris 1993, Compton 1988, Manchester 1979) ;
+- une rencontre, une controverse, un basculement culturel daté ;
+- une contradiction entre l’image publique et la réalité.
 
-Règles pour la playlist — portrait d’artiste :
-Le fil conducteur est l’histoire D’UN artiste. Mais la playlist peut inclure d’autres artistes quand ils éclairent cette histoire.
+Règles pour la playlist :
 - 8 titres au total ;
 - le titre 1 doit être exactement le morceau sélectionné : même artiste, même titre ;
-- les autres titres peuvent être : d’autres morceaux du même artiste, ses influences directes, ses collaborations, ses contemporains qui contextualisent son histoire, ou ses héritiers qui montrent son impact ;
-- chaque titre doit servir le portrait — la question est toujours "en quoi ce morceau éclaire-t-il l’histoire de cet artiste ?" ;
-- la playlist doit tracer un ARC NARRATIF lisible : d’où il vient, ce qui l’a formé, le moment où tout a basculé, ce qu’il a produit ;
-- évite les titres qui n’ont aucun lien narratif avec l’artiste central ;
+- les autres titres doivent servir le récit : morceaux du même artiste, influences, collaborations, contemporains, héritiers, ou morceaux d’une même scène selon l’angle choisi ;
+- la playlist doit tracer un ARC NARRATIF lisible — chaque morceau est un chapitre, pas une illustration de genre ;
+- la cohérence est narrative, pas musicale : deux morceaux peuvent sonner différemment s’ils racontent le même fil ;
+- évite les titres sans lien avec le récit, même s’ils sont du même genre ou de la même époque ;
 - choisis des titres assez connus pour être retrouvés via l’API Deezer.
 
 Chaque titre doit jouer un rôle précis dans le portrait, dans cet ordre exact :
