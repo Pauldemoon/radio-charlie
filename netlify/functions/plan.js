@@ -61,7 +61,7 @@ const EPISODE_SCHEMA = {
 };
 
 const SYSTEM_PROMPT =
-  "Tu es Radio Charlie, une redaction musicale francaise. Ta valeur est dans les faits precis et surprenants — pas dans les adjectifs ni les analyses. Pour chaque morceau, tu cherches ce que la plupart des gens ne savent pas : l'anecdote de studio, la connexion inattendue, le chiffre qui etonne, le contexte qui change tout. Style oral, vivant, jamais scolaire. JSON valide uniquement.";
+  "Tu es Radio Charlie. Ta seule valeur : dire aux auditeurs ce qu'ils ne savaient pas. Pas decrire la musique — informer sur elle. Pour chaque morceau, tu trouves le fait qui change la facon dont on l'entend : l'anecdote de studio, la date precise, le contexte oublie, la connexion inattendue, le chiffre qui etonne. Si tu n'as pas de fait precis sur un titre, tu choisis un autre titre. Jamais d'adjectif a la place d'un fait. Style oral, vivant. JSON valide uniquement.";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -483,15 +483,18 @@ function buildPrompt(seed, attempt, options) {
 
   // ── REGLES CHRONIQUES ──────────────────────────────────────────────────────
   lines.push("REGLES CHRONIQUES (100-120 mots chacune) :");
-  lines.push("- Ouvre sur une scene, un fait precis ou un moment — jamais une definition ni un adjectif");
-  lines.push("- PRIORITE : des faits precis et verifiables — date, nom, chiffre, anecdote documentee");
-  lines.push("- INTERDIT : inventer ou approximer un fait. Si tu n'es pas certain, ne l'inclus pas.");
-  lines.push("  En cas de doute, decris le contexte artistique (la periode, la scene, l'influence) plutot qu'un detail incertain.");
-  lines.push("- INTERDIT : mentionner un sample sauf si tu l'as trouve dans les informations de recherche fournies. Les samples sont tres souvent inventes par les IA. Ne jamais ecrire 'samplait', 'built on a sample', 'emprunte a', 'base sur un sample de' sans source certaine.");
-  lines.push("- Au moins une annee ou date concrete que tu sais etre exacte");
-  lines.push("- Ton oral et vivant — pas scolaire, pas encyclopedique, pas de jargon critique");
-  lines.push("- Derniere phrase : lien explicite avec la these du podcast");
-  lines.push("- Chaque chronique apporte des faits nouveaux — zero repetition entre les 6 titres");
+  lines.push("REGLE ABSOLUE : chaque chronique doit contenir au moins UN fait que la plupart des gens ne connaissent pas.");
+  lines.push("Un fait = une date precise, un nom, un chiffre, une anecdote de studio documentee, un contexte historique oublie, une connexion inattendue entre deux artistes.");
+  lines.push("PAS UN FAIT = 'son unique', 'atmosphere particuliere', 'melange des genres', 'vision artistique', tout adjectif, toute analyse.");
+  lines.push("");
+  lines.push("- Premiere phrase : pose le fait central immediatement — pas de mise en contexte, pas de definition");
+  lines.push("- Si tu n'as pas de fait solide sur un titre, change de titre. Ne remplis pas avec des generalites.");
+  lines.push("- INTERDIT : inventer ou approximer. En cas de doute, ecris le contexte (la periode, la scene) sans inventer le detail.");
+  lines.push("- INTERDIT : mentionner un sample sans source certaine — les IA inventent les samples.");
+  lines.push("- Au moins une annee ou date que tu sais exacte");
+  lines.push("- Ton oral, vivant — pas scolaire, pas encyclopedique");
+  lines.push("- Derniere phrase : lien avec la these du podcast");
+  lines.push("- Zero repetition de faits entre les 6 chroniques");
   lines.push("");
 
   // ── FORMAT ─────────────────────────────────────────────────────────────────
