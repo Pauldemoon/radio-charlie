@@ -1,4 +1,7 @@
 const DEEZER_SEARCH_URL = "https://api.deezer.com/search";
+const DEEZER_FETCH_TIMEOUT_MS = 5000;
+const SPEECH_CACHE_MAX = 30;
+const LAST_QUERY_KEY = "radio-charlie-last-query";
 const IOS_AUDIO_UNLOCK_URL =
   "data:audio/wav;base64,UklGRmQBAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
 const FALLBACK_COVER =
@@ -12,18 +15,23 @@ const els = {
   loadingScreen: document.querySelector("#loading-screen"),
   radioScreen: document.querySelector("#radio-screen"),
   endScreen: document.querySelector("#end-screen"),
+  errorScreen: document.querySelector("#error-screen"),
   searchForm: document.querySelector("#search-form"),
   searchInput: document.querySelector("#search-input"),
   searchButton: document.querySelector("#search-form button"),
   searchMessage: document.querySelector("#search-message"),
   results: document.querySelector("#results"),
   loadingMessage: document.querySelector("#loading-message"),
+  loadingStep: document.querySelector("#loading-step"),
   radioTitle: document.querySelector("#radio-title"),
   pauseButton: document.querySelector("#pause-button"),
   audioUnlockButton: document.querySelector("#audio-unlock-button"),
   skipButton: document.querySelector("#skip-button"),
   stopButton: document.querySelector("#stop-button"),
   restartButton: document.querySelector("#restart-button"),
+  errorMessage: document.querySelector("#error-message"),
+  errorRetryButton: document.querySelector("#error-retry-button"),
+  errorHomeButton: document.querySelector("#error-home-button"),
   currentCover: document.querySelector("#current-cover"),
   currentArtist: document.querySelector("#current-artist"),
   currentTitle: document.querySelector("#current-title"),
@@ -61,9 +69,21 @@ const state = {
   audioUnlockPromise: null,
   pendingAudioStart: null,
   speechCache: new Map(),
+  lastSeedTrack: null,
 };
 
+// ─── Init ────────────────────────────────────────────────────────────────────
+
 els.searchInput.focus();
+
+// Restore last query from session
+const lastQuery = sessionStorage.getItem(LAST_QUERY_KEY);
+if (lastQuery) {
+  els.searchInput.value = lastQuery;
+  searchTracks(lastQuery);
+}
+
+// ─── Search events ───────────────────────────────────────────────────────────
 
 els.searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -78,6 +98,8 @@ els.searchInput.addEventListener("input", () => {
   }, 300);
 });
 
+// ─── Playback control events ─────────────────────────────────────────────────
+
 els.pauseButton.addEventListener("click", () => {
   togglePause();
 });
@@ -87,7 +109,6 @@ els.audioUnlockButton.addEventListener("click", () => {
     state.pendingAudioStart();
     return;
   }
-
   primeAudioPlayback();
 });
 
@@ -102,6 +123,40 @@ els.stopButton.addEventListener("click", () => {
 els.restartButton.addEventListener("click", () => {
   stopEpisode();
 });
+
+// ─── Error screen events ──────────────────────────────────────────────────────
+
+els.errorRetryButton.addEventListener("click", () => {
+  if (state.lastSeedTrack) {
+    startEpisode(state.lastSeedTrack);
+  } else {
+    showHome();
+    els.searchInput.focus();
+  }
+});
+
+els.errorHomeButton.addEventListener("click", () => {
+  state.lastSeedTrack = null;
+  showHome();
+  els.searchInput.focus();
+});
+
+// ─── Keyboard shortcuts (radio screen only) ───────────────────────────────────
+
+document.addEventListener("keydown", (event) => {
+  if (!els.radioScreen.classList.contains("screen--active")) return;
+  if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA") return;
+
+  if (event.code === "Space") {
+    event.preventDefault();
+    togglePause();
+  } else if (event.code === "ArrowRight") {
+    event.preventDefault();
+    interruptCurrentStep();
+  }
+});
+
+// ─── Search ───────────────────────────────────────────────────────────────────
 
 async function searchTracks(query) {
   const searchId = resetSearch();
@@ -130,6 +185,11 @@ async function searchTracks(query) {
 
     showSearchMessage("");
     renderSearchResults(playableResults);
+
+    // Persist query for session restore
+    try {
+      sessionStorage.setItem(LAST_QUERY_KEY, cleanQuery);
+    } catch (_) {}
   } catch (error) {
     if (!isCurrentSearch(searchId)) return;
     showSearchMessage(error.message || "Deezer ne répond pas pour le moment.");
@@ -174,11 +234,16 @@ function renderSearchResults(tracks) {
   els.results.replaceChildren(fragment);
 }
 
+// ─── Episode lifecycle ────────────────────────────────────────────────────────
+
 async function startEpisode(seedTrack) {
   const runId = resetRun();
+  state.lastSeedTrack = seedTrack;
   showLoading();
+  setLoadingStep("Analyse du morceau…");
 
   try {
+    setLoadingStep("Radio Charlie rédige les chroniques…");
     const episode = await fetchPlan({
       artist: seedTrack.artist.name,
       title: seedTrack.title,
@@ -190,6 +255,8 @@ async function startEpisode(seedTrack) {
     if (!isCurrentRun(runId)) return;
 
     preloadSpeech(getTrackChronicle(episode.tracks[0])).catch(() => {});
+
+    setLoadingStep("Recherche des previews musicales…");
     const playableTracks = await enrichWithDeezer(episode.tracks);
 
     if (!isCurrentRun(runId)) return;
@@ -200,19 +267,19 @@ async function startEpisode(seedTrack) {
 
     state.episode = episode;
     state.playableTracks = playableTracks;
+    setLoadingStep("");
     showRadio(episode, playableTracks);
     await playEpisode(runId, playableTracks);
   } catch (error) {
     if (!isCurrentRun(runId)) return;
-    showHome();
-    showSearchMessage(error.message || "Impossible de générer le podcast.");
+    showError(error.message || "Impossible de générer le podcast.");
   }
 }
 
 async function fetchPlan(seed) {
   if (window.location.protocol === "file:" && !API_BASE_URL) {
     throw new Error(
-      "Pour générer un podcast, ouvre l’app depuis Netlify, Railway ou configure l’URL API Railway."
+      "Pour générer un podcast, ouvre l'app depuis Netlify, Railway ou configure l'URL API Railway."
     );
   }
 
@@ -227,11 +294,11 @@ async function fetchPlan(seed) {
   const body = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(body?.error || "L’IA ne répond pas pour le moment.");
+    throw new Error(body?.error || "L'IA ne répond pas pour le moment.");
   }
 
   if (!isValidEpisode(body)) {
-    throw new Error("Le podcast généré n’a pas le bon format.");
+    throw new Error("Le podcast généré n'a pas le bon format.");
   }
 
   return body;
@@ -286,7 +353,7 @@ async function playEpisode(runId, tracks) {
     await wait(400);
     if (!isCurrentRun(runId)) return;
 
-    setPlaybackState("En cours d’écoute");
+    setPlaybackState("En cours d'écoute");
     await playPreview(track.preview);
     if (!isCurrentRun(runId)) return;
 
@@ -298,6 +365,8 @@ async function playEpisode(runId, tracks) {
     showEnd();
   }
 }
+
+// ─── Speech ───────────────────────────────────────────────────────────────────
 
 async function speak(text) {
   const cleanSpeechText = String(text || "").trim();
@@ -328,6 +397,16 @@ function preloadSpeech(text) {
   }
 
   if (!state.speechCache.has(cleanSpeechText)) {
+    // LRU eviction — drop oldest entry when cache is full
+    if (state.speechCache.size >= SPEECH_CACHE_MAX) {
+      const oldestKey = state.speechCache.keys().next().value;
+      state.speechCache
+        .get(oldestKey)
+        .then((url) => URL.revokeObjectURL(url))
+        .catch(() => {});
+      state.speechCache.delete(oldestKey);
+    }
+
     state.speechCache.set(cleanSpeechText, fetchSpeechAudio(cleanSpeechText));
   }
 
@@ -394,6 +473,8 @@ function speakWithBrowser(text) {
     window.speechSynthesis.speak(utterance);
   });
 }
+
+// ─── Audio playback ───────────────────────────────────────────────────────────
 
 function playPreview(url) {
   return playAudio(url);
@@ -520,6 +601,8 @@ function isPlaybackBlocked(error) {
   );
 }
 
+// ─── Playback control ─────────────────────────────────────────────────────────
+
 function interruptCurrentStep() {
   if (state.playback) {
     state.playback.stop();
@@ -549,9 +632,13 @@ function stopEpisode() {
   clearPlayback();
   state.episode = null;
   state.playableTracks = [];
+  state.lastSeedTrack = null;
   els.searchInput.value = "";
   els.results.replaceChildren();
   showSearchMessage("");
+  try {
+    sessionStorage.removeItem(LAST_QUERY_KEY);
+  } catch (_) {}
   showHome();
   els.searchInput.focus();
 }
@@ -568,6 +655,8 @@ function clearSpeechCache() {
   });
   state.speechCache.clear();
 }
+
+// ─── Run / search IDs ─────────────────────────────────────────────────────────
 
 function resetRun() {
   state.runId += 1;
@@ -589,6 +678,8 @@ function isCurrentSearch(searchId) {
   return state.searchId === searchId;
 }
 
+// ─── Deezer ───────────────────────────────────────────────────────────────────
+
 async function deezerSearch(query, limit = 5) {
   if (!query.trim()) {
     throw new Error("La recherche est vide.");
@@ -601,11 +692,24 @@ async function deezerSearch(query, limit = 5) {
   });
   const url = `${DEEZER_SEARCH_URL}?${params.toString()}`;
 
+  // Use AbortController for a clean fetch timeout
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), DEEZER_FETCH_TIMEOUT_MS);
+
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: controller.signal });
+    window.clearTimeout(timeoutId);
     const text = await response.text();
     return normalizeDeezerResults(parseJsonp(text));
   } catch (error) {
+    window.clearTimeout(timeoutId);
+
+    if (error.name === "AbortError") {
+      // Timeout → fall through to JSONP script tag fallback
+    } else if (error.message?.includes("JSONP")) {
+      throw error;
+    }
+
     return deezerJsonpWithScript(query, limit);
   }
 }
@@ -701,6 +805,8 @@ function findBestPlayableMatch(results, wantedTrack) {
   );
 }
 
+// ─── Episode validation ───────────────────────────────────────────────────────
+
 function isValidEpisode(value) {
   return Boolean(
     value &&
@@ -717,6 +823,8 @@ function isValidEpisode(value) {
       ),
   );
 }
+
+// ─── UI: track & queue ────────────────────────────────────────────────────────
 
 function updateCurrentTrack(track, index, total) {
   els.progress.textContent = `${index + 1} / ${total}`;
@@ -761,11 +869,87 @@ function renderQueue(tracks, activeIndex) {
   els.queue.replaceChildren(fragment);
 }
 
+// ─── UI: screen transitions ───────────────────────────────────────────────────
+
 function showRadio(episode, tracks) {
   els.radioTitle.textContent = getEpisodeTitle(episode);
   renderQueue(tracks, 0);
   showScreen(els.radioScreen);
 }
+
+function showLoading() {
+  showSearchMessage("");
+  els.results.replaceChildren();
+  showScreen(els.loadingScreen);
+  setLoadingMessage(LOADING_MESSAGE);
+  setLoadingStep("");
+}
+
+function showHome() {
+  showScreen(els.homeScreen);
+}
+
+function showEnd() {
+  showScreen(els.endScreen);
+}
+
+function showError(message) {
+  if (els.errorMessage) {
+    els.errorMessage.textContent = message;
+  }
+  showScreen(els.errorScreen);
+}
+
+function showScreen(screen) {
+  [
+    els.homeScreen,
+    els.loadingScreen,
+    els.radioScreen,
+    els.endScreen,
+    els.errorScreen,
+  ].forEach((item) => {
+    item.classList.toggle("screen--active", item === screen);
+  });
+}
+
+// ─── UI: messages & state ─────────────────────────────────────────────────────
+
+function showSearchMessage(message) {
+  els.searchMessage.textContent = message;
+}
+
+function setLoadingMessage(message) {
+  els.loadingMessage.textContent = message;
+}
+
+function setLoadingStep(message) {
+  if (els.loadingStep) {
+    els.loadingStep.textContent = message;
+  }
+}
+
+function setPlaybackState(text) {
+  state.playbackLabel = text;
+
+  if (!state.isPaused) {
+    els.playbackState.textContent = text;
+  }
+}
+
+function setSearchBusy(isBusy) {
+  els.searchButton.disabled = isBusy;
+  els.searchButton.textContent = isBusy ? "Recherche…" : "Rechercher";
+  els.searchForm.setAttribute("aria-busy", String(isBusy));
+}
+
+function resetPauseControl(isPaused, isDisabled = false) {
+  state.isPaused = isPaused;
+  els.pauseButton.disabled = isDisabled;
+  els.pauseButton.textContent = isPaused ? "Reprendre" : "Pause";
+  els.pauseButton.setAttribute("aria-pressed", String(isPaused));
+}
+
+// ─── Getters ──────────────────────────────────────────────────────────────────
 
 function getEpisodeTitle(episode) {
   return episode.title || episode.radioTitle || "";
@@ -783,43 +967,6 @@ function getRoleLabel(role) {
   return roleLabels[role] || role;
 }
 
-function showLoading() {
-  showSearchMessage("");
-  els.results.replaceChildren();
-  showScreen(els.loadingScreen);
-  setLoadingMessage(LOADING_MESSAGE);
-}
-
-function showHome() {
-  showScreen(els.homeScreen);
-}
-
-function showEnd() {
-  showScreen(els.endScreen);
-}
-
-function showScreen(screen) {
-  [els.homeScreen, els.loadingScreen, els.radioScreen, els.endScreen].forEach((item) => {
-    item.classList.toggle("screen--active", item === screen);
-  });
-}
-
-function showSearchMessage(message) {
-  els.searchMessage.textContent = message;
-}
-
-function setLoadingMessage(message) {
-  els.loadingMessage.textContent = message;
-}
-
-function setPlaybackState(text) {
-  state.playbackLabel = text;
-
-  if (!state.isPaused) {
-    els.playbackState.textContent = text;
-  }
-}
-
 function apiUrl(path) {
   if (API_BASE_URL) {
     return `${API_BASE_URL}${path}`;
@@ -828,21 +975,10 @@ function apiUrl(path) {
   return `/.netlify/functions${path}`;
 }
 
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
 function cleanApiBaseUrl(value) {
   return String(value || "").replace(/\/+$/, "");
-}
-
-function setSearchBusy(isBusy) {
-  els.searchButton.disabled = isBusy;
-  els.searchButton.textContent = isBusy ? "Recherche…" : "Rechercher";
-  els.searchForm.setAttribute("aria-busy", String(isBusy));
-}
-
-function resetPauseControl(isPaused, isDisabled = false) {
-  state.isPaused = isPaused;
-  els.pauseButton.disabled = isDisabled;
-  els.pauseButton.textContent = isPaused ? "Reprendre" : "Pause";
-  els.pauseButton.setAttribute("aria-pressed", String(isPaused));
 }
 
 function wait(ms) {
@@ -867,7 +1003,7 @@ function once(fn) {
 function normalizeText(value) {
   return String(value || "")
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\p{Mn}/gu, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();

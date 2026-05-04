@@ -29,6 +29,8 @@ exports.handler = async (event) => {
   const text = cleanText(body.text).slice(0, 5000);
   if (!text) return json(400, { error: "Le texte est vide." });
 
+  console.log(`[speak] chars=${text.length} voiceId=${process.env.ELEVENLABS_VOICE_ID}`);
+
   try {
     const response = await fetch(
       `${ELEVENLABS_API_URL}/${process.env.ELEVENLABS_VOICE_ID}`,
@@ -50,7 +52,11 @@ exports.handler = async (event) => {
       }
     );
 
-    if (!response.ok) throw new Error("Erreur ElevenLabs");
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => "");
+      console.error(`[speak] ElevenLabs error status=${response.status} body=${errBody.slice(0, 200)}`);
+      throw new Error(`Erreur ElevenLabs (${response.status})`);
+    }
 
     const audioBuffer = await response.arrayBuffer();
 
@@ -64,6 +70,7 @@ exports.handler = async (event) => {
       body: Buffer.from(audioBuffer).toString("base64"),
     };
   } catch (error) {
+    console.error(`[speak] error message="${error.message}"`);
     return json(502, { error: "Problème avec ElevenLabs." });
   }
 };

@@ -61,6 +61,7 @@
         <p id="loading-message" class="loading-message" role="status" aria-live="polite">
           Création du podcast en cours…
         </p>
+        <p id="loading-step" class="loading-step" aria-live="polite"></p>
       </section>
 
       <section id="radio-screen" class="screen radio-screen" aria-label="Podcast">
@@ -120,6 +121,22 @@
         <button id="restart-button" class="primary-button" type="button">
           Relancer avec un autre morceau
         </button>
+      </section>
+
+      <section id="error-screen" class="screen error-screen" aria-label="Erreur">
+        <div class="brand-logo brand-logo--status" aria-label="Radio Charlie">
+          <img class="brand-logo-image" src="./assets/radio-charlie-logo-mark.png" alt="Radio Charlie">
+        </div>
+        <h2>Quelque chose a mal tourné.</h2>
+        <p id="error-message" class="error-detail"></p>
+        <div class="error-actions">
+          <button id="error-retry-button" class="primary-button" type="button">
+            Réessayer
+          </button>
+          <button id="error-home-button" class="secondary-button" type="button">
+            Nouvelle recherche
+          </button>
+        </div>
       </section>
     </main>
 

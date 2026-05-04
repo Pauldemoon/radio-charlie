@@ -96,12 +96,17 @@ exports.handler = async (event) => {
     });
   }
 
+  const provider = process.env.ANTHROPIC_API_KEY ? "claude" : "openai";
+  console.log(`[plan] start provider=${provider} artist="${seed.artist}" title="${seed.title}"`);
+
   try {
     const episode = process.env.ANTHROPIC_API_KEY
       ? await createClaudeEpisode(seed)
       : await createOpenAiEpisode(seed);
+    console.log(`[plan] success provider=${provider} episodeTitle="${episode.title}"`);
     return json(200, episode);
   } catch (error) {
+    console.error(`[plan] error provider=${provider} message="${error.message}"`);
     return json(502, {
       error: getAiUserMessage(error),
       detail: process.env.NODE_ENV === "development" ? error.message : undefined,
@@ -176,6 +181,7 @@ async function createClaudeEpisode(seed) {
 }
 
 async function requestClaudeEpisode(seed, attempt, model) {
+  console.log(`[plan/claude] attempt=${attempt} model=${model}`);
   const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
     headers: {
@@ -234,6 +240,7 @@ async function createEpisodeWithQualityRetry(createEpisode) {
         lastCompleteEpisode = episode;
       }
 
+      console.warn(`[plan] quality check failed attempt=${attempt}/${AI_ATTEMPTS}`);
       lastError = new Error(QUALITY_ERROR_MESSAGE);
     } catch (error) {
       lastError = error;
