@@ -468,18 +468,20 @@ function buildPrompt(seed, attempt, options) {
   lines.push("");
 
   // ── PLAYLIST ───────────────────────────────────────────────────────────────
-  lines.push("PLAYLIST : 8 titres, roles dans cet ordre :");
-  lines.push("1. opener           - ouvre et pose le ton");
-  lines.push("2. origin           - la source : scene, influence, point de depart");
-  lines.push("3. rupture          - une cassure, un risque, un deplacement");
-  lines.push("4. contrast         - opposition de ton, d'epoque ou de statut");
-  lines.push("5. hidden influence - connexion inattendue, cousinage surprenant");
-  lines.push("6. turning point    - le moment ou quelque chose a bascule");
+  lines.push("PLAYLIST : 8 titres qui documentent le voyage annonce dans l'intro.");
+  lines.push("Chaque titre est choisi parce qu'il illustre un moment de ce parcours.");
+  lines.push("Les roles structurent ce voyage dans cet ordre :");
+  lines.push("1. opener           - ouvre le voyage, pose le ton");
+  lines.push("2. origin           - la source : d'ou vient tout ca");
+  lines.push("3. rupture          - le moment ou quelque chose change");
+  lines.push("4. contrast         - une perspective opposee ou inattendue");
+  lines.push("5. hidden influence - une connexion surprenante dans ce parcours");
+  lines.push("6. turning point    - le basculement central du voyage");
   lines.push("7. consequence      - ce que ce basculement a produit");
-  lines.push("8. closing statement- ferme avec une idee forte");
+  lines.push("8. closing statement- ou on arrive a la fin du voyage");
   lines.push("");
   lines.push(
-    "Regles : Titre 1 = le morceau choisi. Coherence culturelle (meme langue ou scene). Disponibles sur Deezer.",
+    "Regles : Titre 1 = le morceau choisi. Coherence avec le voyage de l'intro. Disponibles sur Deezer.",
   );
   lines.push("");
 
@@ -491,7 +493,7 @@ function buildPrompt(seed, attempt, options) {
   lines.push("  En cas de doute, decris le contexte artistique (la periode, la scene, l'influence) plutot qu'un detail incertain.");
   lines.push("- Au moins une annee ou date concrete que tu sais etre exacte");
   lines.push("- Ton oral et vivant — pas scolaire, pas encyclopedique, pas de jargon critique");
-  lines.push("- Derniere phrase : pourquoi ce titre est dans cette playlist");
+  lines.push("- Derniere phrase : ou ce titre se situe dans le voyage de ce podcast");
   lines.push("- Chaque chronique apporte des faits nouveaux — zero repetition entre les 8 titres");
   lines.push("");
 
