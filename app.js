@@ -347,6 +347,16 @@ async function enrichWithDeezer(tracks) {
 }
 
 async function playEpisode(runId, tracks) {
+  // Lire l'intro editoriale avant le premier morceau
+  const intro = state.episode?.intro;
+  if (intro) {
+    setPlaybackState("Charlie raconte…");
+    await speak(intro);
+    if (!isCurrentRun(runId)) return;
+    await wait(600);
+    if (!isCurrentRun(runId)) return;
+  }
+
   for (let index = 0; index < tracks.length; index += 1) {
     if (!isCurrentRun(runId)) return;
 

@@ -16,6 +16,8 @@ const AI_ATTEMPTS = Number.isFinite(configuredAiAttempts)
   : 2;
 const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 55000);
 const WEB_SEARCH_USES = Math.max(0, Math.min(5, Number(process.env.RADIO_CHARLIE_WEB_SEARCH_USES || 2)));
+const TAVILY_API_URL = "https://api.tavily.com/search";
+const TAVILY_SNIPPET_CHARS = 450; // chars to keep per result in the prompt
 const DEBUG = process.env.RADIO_CHARLIE_DEBUG_AI === "true";
 // RADIO_CHARLIE_QUALITY_GATE=false désactive le filtre qualité (ancien nom : RADIO_CHARLIE_STRICT_AI)
 const STRICT_QUALITY =
@@ -35,10 +37,11 @@ const PLAYLIST_ROLES = [
 const EPISODE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "angle", "tracks"],
+  required: ["title", "angle", "intro", "tracks"],
   properties: {
     title: { type: "string" },
     angle: { type: "string" },
+    intro: { type: "string" },
     tracks: {
       type: "array",
       minItems: 8,
@@ -152,6 +155,51 @@ async function fetchWithTimeout(url, options) {
 }
 
 // ---------------------------------------------------------------------------
+// Tavily web search (provider-agnostic — used by DeepSeek and OpenAI)
+// ---------------------------------------------------------------------------
+
+async function searchWeb(query) {
+  if (!process.env.TAVILY_API_KEY) return [];
+  try {
+    const response = await fetchWithTimeout(TAVILY_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: process.env.TAVILY_API_KEY,
+        query,
+        search_depth: "basic",
+        max_results: 3,
+        include_answer: false,
+      }),
+    });
+    if (!response.ok) return [];
+    const data = await response.json().catch(() => null);
+    return data?.results || [];
+  } catch (err) {
+    console.warn(`[search] query="${query}" error="${err.message}"`);
+    return [];
+  }
+}
+
+async function gatherResearchContext(artist, title) {
+  if (!process.env.TAVILY_API_KEY) return null;
+  const queries = [
+    `"${artist}" "${title}" anecdote recording story behind`,
+    `"${artist}" biography interview unexpected`,
+  ];
+  const resultSets = await Promise.all(queries.map((q) => searchWeb(q)));
+  const seen = new Set();
+  const results = resultSets
+    .flat()
+    .filter((r) => r.content && !seen.has(r.url) && seen.add(r.url));
+  if (!results.length) return null;
+  return results
+    .slice(0, 5)
+    .map((r) => `[${r.title}]\n${r.content.slice(0, TAVILY_SNIPPET_CHARS)}`)
+    .join("\n\n");
+}
+
+// ---------------------------------------------------------------------------
 // OpenAI
 // ---------------------------------------------------------------------------
 
@@ -160,6 +208,9 @@ async function createOpenAiEpisode(seed) {
 }
 
 async function requestOpenAiEpisode(seed, attempt) {
+  const researchContext = attempt === 1 ? await gatherResearchContext(seed.artist, seed.title) : null;
+  if (researchContext) console.log(`[plan/openai] research context: ${researchContext.length} chars`);
+
   const response = await fetchWithTimeout(OPENAI_API_URL, {
     method: "POST",
     headers: {
@@ -180,7 +231,7 @@ async function requestOpenAiEpisode(seed, attempt) {
       },
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: buildPrompt(seed, attempt) },
+        { role: "user", content: buildPrompt(seed, attempt, { researchContext }) },
       ],
     }),
   });
@@ -200,6 +251,10 @@ async function createDeepSeekEpisode(seed) {
 }
 
 async function requestDeepSeekEpisode(seed, attempt) {
+  // Web research via Tavily (first attempt only — retry uses the same context implicitly)
+  const researchContext = attempt === 1 ? await gatherResearchContext(seed.artist, seed.title) : null;
+  if (researchContext) console.log(`[plan/deepseek] research context: ${researchContext.length} chars`);
+
   const model = DEEPSEEK_MODEL;
   // Reasoning models: deepseek-reasoner, *-pro, *-r1 — they think before answering
   // and need a much larger token budget (reasoning chain + JSON output)
@@ -212,7 +267,7 @@ async function requestDeepSeekEpisode(seed, attempt) {
     max_tokens: maxTokens,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: buildPrompt(seed, attempt) },
+      { role: "user", content: buildPrompt(seed, attempt, { researchContext }) },
     ],
   };
 
@@ -357,8 +412,9 @@ function buildPrompt(seed, attempt, options) {
     lines.push("");
   }
 
-  // ── RECHERCHE (Claude uniquement) ──────────────────────────────────────────
+  // ── RECHERCHE ──────────────────────────────────────────────────────────────
   if (useWebSearch) {
+    // Claude : instructions pour sa recherche native
     lines.push("ETAPE 1 - RECHERCHE (fais 1-2 recherches) :");
     lines.push('- "' + artist + " " + title + ' anecdote recording story behind"');
     lines.push('- "' + artist + ' biography interview unexpected"');
@@ -366,6 +422,15 @@ function buildPrompt(seed, attempt, options) {
       "Cherche des faits qui etonnent : anecdotes de studio, connexions inattendues, contexte historique oublie, chiffres precis, tensions biographiques.",
     );
     lines.push("Utilise seulement des faits trouves ou tres etablis. Ne mentionne pas tes recherches dans le JSON. Pas de balises <cite>.");
+    lines.push("");
+  } else if (options && options.researchContext) {
+    // DeepSeek / OpenAI : resultats Tavily injectes directement
+    lines.push("=== INFORMATIONS TROUVEES SUR CET ARTISTE ===");
+    lines.push(options.researchContext);
+    lines.push("");
+    lines.push(
+      "Pour les dates, chiffres et anecdotes precises, utilise en priorite ces informations. Ne complete avec tes connaissances generales que pour des faits tres etablis et publics (ex: date de sortie d'un album majeur). Ne jamais inventer ni approximer.",
+    );
     lines.push("");
   }
 
@@ -376,6 +441,12 @@ function buildPrompt(seed, attempt, options) {
     "FIL CONDUCTEUR : une phrase qui explique pourquoi ces 8 titres ensemble — pas un genre, pas une epoque, pas 'Autour de X'.",
   );
   lines.push("Le titre du podcast exprime ce fil.");
+  lines.push("");
+  lines.push("INTRO (2-3 phrases, lue a voix haute avant le premier morceau) :");
+  lines.push("- Pose le fil conducteur de facon narrative et concrete");
+  lines.push("- Commence par un fait, une scene ou une tension — pas 'ce soir on va...'");
+  lines.push("- Donne envie d'ecouter sans tout raconter");
+  lines.push('- Exemple : "En 2006, Phoenix s\'enferme dans des studios berlinois ou l\'electricite coupe sans prevenir. Plutot que de combattre ces imperfections, ils les gardent — premieres prises, bruits parasites et tout. Ce podcast suit ce moment precis ou un groupe decide d\'arreter de se controler."');
   lines.push("");
 
   // ── EXEMPLE PARFAIT ────────────────────────────────────────────────────────
@@ -413,14 +484,11 @@ function buildPrompt(seed, attempt, options) {
 
   // ── REGLES CHRONIQUES ──────────────────────────────────────────────────────
   lines.push("REGLES CHRONIQUES (100-120 mots chacune) :");
-  lines.push("- Ouvre sur une scene, un fait precis ou un moment — jamais une definition");
-  lines.push(
-    "- PRIORITE ABSOLUE : au moins un fait que quelqu'un qui connait l'artiste ne sait probablement pas",
-  );
-  lines.push(
-    "  Exemples : technique de studio precise, connexion inattendue avec un autre artiste, contexte historique peu connu, chiffre ou date qui etonne, anecdote biographique concrete",
-  );
-  lines.push("- Au moins une annee ou date precise");
+  lines.push("- Ouvre sur une scene, un fait precis ou un moment — jamais une definition ni un adjectif");
+  lines.push("- PRIORITE : des faits precis et verifiables — date, nom, chiffre, anecdote documentee");
+  lines.push("- INTERDIT : inventer ou approximer un fait. Si tu n'es pas certain, ne l'inclus pas.");
+  lines.push("  En cas de doute, decris le contexte artistique (la periode, la scene, l'influence) plutot qu'un detail incertain.");
+  lines.push("- Au moins une annee ou date concrete que tu sais etre exacte");
   lines.push("- Ton oral et vivant — pas scolaire, pas encyclopedique, pas de jargon critique");
   lines.push("- Derniere phrase : pourquoi ce titre est dans cette playlist");
   lines.push("- Chaque chronique apporte des faits nouveaux — zero repetition entre les 8 titres");
@@ -430,7 +498,7 @@ function buildPrompt(seed, attempt, options) {
   lines.push("FORMAT : JSON valide uniquement. Aucun texte hors JSON. Aucun markdown.");
   lines.push("");
   lines.push(
-    'Schema : { "title": "string", "angle": "string (le fil conducteur en une phrase)", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 100-120 mots" }, ...] }',
+    'Schema : { "title": "string", "angle": "string (le fil conducteur en une phrase)", "intro": "string (2-3 phrases parlees avant le premier morceau)", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 100-120 mots" }, ...] }',
   );
 
   return lines.join("\n");
