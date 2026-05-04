@@ -28,8 +28,6 @@ const PLAYLIST_ROLES = [
   "opener",
   "origin",
   "rupture",
-  "contrast",
-  "hidden influence",
   "turning point",
   "consequence",
   "closing statement",
@@ -44,8 +42,8 @@ const EPISODE_SCHEMA = {
     intro: { type: "string" },
     tracks: {
       type: "array",
-      minItems: 8,
-      maxItems: 8,
+      minItems: 6,
+      maxItems: 6,
       items: {
         type: "object",
         additionalProperties: false,
@@ -468,17 +466,15 @@ function buildPrompt(seed, attempt, options) {
   lines.push("");
 
   // ── PLAYLIST ───────────────────────────────────────────────────────────────
-  lines.push("PLAYLIST : 8 titres qui documentent le voyage annonce dans l'intro.");
+  lines.push("PLAYLIST : 6 titres qui documentent le voyage annonce dans l'intro.");
   lines.push("Chaque titre est choisi parce qu'il illustre un moment de ce parcours.");
   lines.push("Les roles structurent ce voyage dans cet ordre :");
-  lines.push("1. opener           - ouvre le voyage, pose le ton");
-  lines.push("2. origin           - la source : d'ou vient tout ca");
-  lines.push("3. rupture          - le moment ou quelque chose change");
-  lines.push("4. contrast         - une perspective opposee ou inattendue");
-  lines.push("5. hidden influence - une connexion surprenante dans ce parcours");
-  lines.push("6. turning point    - le basculement central du voyage");
-  lines.push("7. consequence      - ce que ce basculement a produit");
-  lines.push("8. closing statement- ou on arrive a la fin du voyage");
+  lines.push("1. opener          - ouvre le voyage, pose le ton");
+  lines.push("2. origin          - la source : d'ou vient tout ca");
+  lines.push("3. rupture         - le moment ou quelque chose change");
+  lines.push("4. turning point   - le basculement central du voyage");
+  lines.push("5. consequence     - ce que ce basculement a produit");
+  lines.push("6. closing statement - ou on arrive a la fin du voyage");
   lines.push("");
   lines.push(
     "Regles : Titre 1 = le morceau choisi. Coherence avec le voyage de l'intro. Disponibles sur Deezer.",
@@ -551,7 +547,7 @@ function isCompleteEpisode(episode) {
     episode &&
       typeof episode.title === "string" &&
       Array.isArray(episode.tracks) &&
-      episode.tracks.length === 8 &&
+      episode.tracks.length === 6 &&
       episode.tracks.every(
         (track) =>
           typeof track.artist === "string" &&
