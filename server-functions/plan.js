@@ -11,16 +11,6 @@ const TAVILY_MAX_RESULTS = clampNumber(numberEnv("TAVILY_MAX_RESULTS", 5), 1, 8)
 const TAVILY_CACHE_TTL_MS = numberEnv("TAVILY_CACHE_TTL_MS", 60 * 60 * 1000);
 const MAX_SEED_FIELD_LENGTH = 160;
 const tavilyCache = new Map();
-const PLAYLIST_ROLES = [
-  "opener",
-  "origin",
-  "rupture",
-  "contrast",
-  "hidden influence",
-  "turning point",
-  "consequence",
-  "closing statement",
-];
 const EPISODE_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -31,14 +21,13 @@ const EPISODE_SCHEMA = {
     intro: { type: "string" },
     tracks: {
       type: "array",
-      minItems: 8,
+      minItems: 6,
       maxItems: 8,
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["role", "artist", "title", "reason", "chronicle"],
+        required: ["artist", "title", "reason", "chronicle"],
         properties: {
-          role: { type: "string", enum: PLAYLIST_ROLES },
           artist: { type: "string" },
           title: { type: "string" },
           reason: { type: "string" },
@@ -703,18 +692,9 @@ Règles pour la playlist :
 - évite les titres sans lien avec le récit, même s’ils sont du même genre ou de la même époque ;
 - choisis des titres assez connus pour être retrouvés via l’API Deezer.
 
-Chaque titre doit jouer un rôle précis dans le portrait, dans cet ordre exact :
-1. "opener" : le morceau choisi — ouvre la porte sur qui est cet artiste ;
-2. "origin" : d’où il vient — ses débuts, ses influences formatrices, sa scène d’origine ;
-3. "rupture" : le moment où il a rompu avec ce qu’il était avant ;
-4. "contrast" : une facette moins connue, un registre inattendu, une contradiction ;
-5. "hidden influence" : ce qui l’a formé en secret — un artiste, un lieu, une rencontre ;
-6. "turning point" : la bascule publique — l’album, le morceau ou l’événement qui a tout changé ;
-7. "consequence" : ce que cette bascule a produit — la suite, l’impact, les héritiers ;
-8. "closing statement" : où il en est — son état actuel ou son legs définitif.
-
-Le champ "role" de chaque piste doit reprendre exactement l’un de ces 8 rôles, dans cet ordre.
-Le champ "reason" doit expliquer pourquoi ce titre illustre ce chapitre précis de la vie de l’artiste.
+La structure narrative est libre — c’est toi qui définis les chapitres selon l’histoire que tu racontes.
+Il n’y a pas de rôles imposés. Ce qui compte : chaque morceau doit faire avancer le récit.
+Le champ "reason" doit expliquer en une phrase pourquoi ce morceau appartient à cet endroit du récit.
 
 Règles pour les chroniques :
 Chaque chronique doit être écrite pour être dite à voix haute.
@@ -808,12 +788,11 @@ Schéma :
   "intro": "string",
   "tracks": [
     {
-      "role": "opener",
       "artist": "string",
       "title": "string",
-      "reason": "pourquoi ce titre appartient à l’émission",
+      "reason": "pourquoi ce morceau appartient à cet endroit du récit",
       "chronicle": "chronique radio française naturelle, 36 à 48 mots, directe et rythmée",
-      "transition": "1 phrase max 18 mots, pont vers ce titre (optionnel, absent sur le titre 1)"
+      "transition": "1 phrase max 18 mots, pont sonore vers ce titre (optionnel, absent sur le titre 1)"
     }
   ]
 }
@@ -911,8 +890,7 @@ function normalizeEpisode(episode) {
     angle: cleanText(episode.angle || ""),
     intro: cleanText(episode.intro || ""),
     tracks: Array.isArray(episode.tracks)
-      ? episode.tracks.map((track, index) => ({
-          role: normalizePlaylistRole(track.role, index),
+      ? episode.tracks.map((track) => ({
           artist: cleanText(track.artist || ""),
           title: cleanText(track.title || ""),
           reason: cleanText(track.reason || ""),
@@ -930,28 +908,23 @@ function isValidEpisode(episode) {
       typeof episode.angle === "string" &&
       typeof episode.intro === "string" &&
       Array.isArray(episode.tracks) &&
-      episode.tracks.length === 8 &&
+      episode.tracks.length >= 6 &&
+      episode.tracks.length <= 8 &&
+      cleanText(episode.title) &&
+      cleanText(episode.angle) &&
+      cleanText(episode.intro) &&
       episode.tracks.every(
-        (track, index) =>
+        (track) =>
           typeof track.artist === "string" &&
           typeof track.title === "string" &&
           typeof track.chronicle === "string" &&
-          typeof track.role === "string" &&
           typeof track.reason === "string" &&
-          cleanText(episode.title) &&
-          cleanText(episode.angle) &&
-          cleanText(episode.intro) &&
-          track.role === PLAYLIST_ROLES[index] &&
           cleanText(track.artist) &&
           cleanText(track.title) &&
           cleanText(track.chronicle) &&
           cleanText(track.reason),
       ),
   );
-}
-
-function normalizePlaylistRole(role, index) {
-  return PLAYLIST_ROLES.includes(role) ? role : PLAYLIST_ROLES[index] || "opener";
 }
 
 function isSeedOpeningTrack(episode, seed) {
