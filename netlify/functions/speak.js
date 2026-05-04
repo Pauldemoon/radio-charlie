@@ -26,8 +26,11 @@ exports.handler = async (event) => {
     return json(400, { error: "Requête JSON invalide." });
   }
 
-  const text = cleanText(body.text).slice(0, 5000);
-  if (!text) return json(400, { error: "Le texte est vide." });
+  const rawText = cleanText(body.text).slice(0, 5000);
+  if (!rawText) return json(400, { error: "Le texte est vide." });
+
+  // Prépare le texte pour un rendu radio naturel
+  const text = prepareForTTS(rawText);
 
   console.log(`[speak] chars=${text.length} voiceId=${process.env.ELEVENLABS_VOICE_ID}`);
 
@@ -42,11 +45,18 @@ exports.handler = async (event) => {
           "xi-api-key": process.env.ELEVENLABS_API_KEY,
         },
         body: JSON.stringify({
-          text: text,
-          model_id: "eleven_multilingual_v2",
+          text,
+          // eleven_turbo_v2_5 : plus rapide et plus expressif qu'eleven_multilingual_v2
+          model_id: "eleven_turbo_v2_5",
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
+            // stability bas = plus d'intonation, moins de monotonie
+            stability: 0.28,
+            // similarity_boost légèrement baissé pour plus de naturel
+            similarity_boost: 0.72,
+            // style : expressivité dramatique (rendu radio, pas TTS neutre)
+            style: 0.42,
+            // use_speaker_boost : clarté et présence de la voix
+            use_speaker_boost: true,
           },
         }),
       }
@@ -74,6 +84,21 @@ exports.handler = async (event) => {
     return json(502, { error: "Problème avec ElevenLabs." });
   }
 };
+
+/**
+ * Prépare le texte pour un rendu TTS radio naturel.
+ * - Supprime les balises HTML résiduelles
+ * - Convertit les points de suspension en pause em-dash (meilleur rendu ElevenLabs)
+ * - Assure une ponctuation finale propre
+ */
+function prepareForTTS(text) {
+  return text
+    .replace(/<[^>]+>/g, "")          // strip HTML
+    .replace(/\.{3}/g, " — ")          // ... → pause naturelle
+    .replace(/\s{2,}/g, " ")           // espaces multiples
+    .replace(/([^.!?])$/, "$1.")        // ponctuation finale si absente
+    .trim();
+}
 
 function cleanText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();

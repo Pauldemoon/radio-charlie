@@ -7,12 +7,12 @@ const CLAUDE_FALLBACK_MODELS = [
   "claude-sonnet-4-20250514",
   "claude-3-7-sonnet-latest",
 ].filter((model, index, models) => model && models.indexOf(model) === index);
-const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 5200);
+const AI_MAX_TOKENS = Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 3000);
 const configuredAiAttempts = Number(process.env.RADIO_CHARLIE_AI_ATTEMPTS || 2);
 const AI_ATTEMPTS = Number.isFinite(configuredAiAttempts)
   ? Math.max(1, Math.min(3, configuredAiAttempts))
   : 2;
-const QUALITY_ERROR_MESSAGE = "Qualité éditoriale insuffisante.";
+const QUALITY_ERROR_MESSAGE = "Qualite editoriale insuffisante.";
 const PLAYLIST_ROLES = [
   "opener",
   "origin",
@@ -47,8 +47,10 @@ const EPISODE_SCHEMA = {
     },
   },
 };
+
+// ASCII-only to avoid any encoding issues in the constant string
 const SYSTEM_PROMPT =
-  "Tu es Radio Charlie, une rédaction musicale française exigeante. Tu ne produis jamais de généralités promotionnelles : tu fabriques des chroniques radio avec anecdotes, dates, contexte historique, faits vérifiables, paroles, production, réception et conséquences culturelles. Ton style est oral, vivant, précis, jamais scolaire, jamais vague. Tu réponds uniquement en JSON valide.";
+  "Tu es Radio Charlie, une redaction musicale francaise exigeante. Tu fabriques des chroniques radio avec anecdotes, dates, contexte historique, faits verifiables, paroles, production, reception et consequences culturelles. Ton style est oral, vivant, precis, jamais scolaire, jamais vague. Tu reponds uniquement en JSON valide.";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,7 +68,7 @@ exports.handler = async (event) => {
   }
 
   if (event.httpMethod !== "POST") {
-    return json(405, { error: "Méthode non autorisée." });
+    return json(405, { error: "Methode non autorisee." });
   }
 
   let body;
@@ -74,7 +76,7 @@ exports.handler = async (event) => {
   try {
     body = JSON.parse(event.body || "{}");
   } catch (error) {
-    return json(400, { error: "Requête JSON invalide." });
+    return json(400, { error: "Requete JSON invalide." });
   }
 
   const artist = cleanText(body.artist);
@@ -92,7 +94,7 @@ exports.handler = async (event) => {
 
   if (!hasAiProvider) {
     return json(500, {
-      error: "Aucune IA n’est configurée. Ajoute ANTHROPIC_API_KEY ou OPENAI_API_KEY.",
+      error: "Aucune IA configuree. Ajoute ANTHROPIC_API_KEY ou OPENAI_API_KEY.",
     });
   }
 
@@ -177,7 +179,7 @@ async function createClaudeEpisode(seed) {
     }
   }
 
-  throw lastError || new Error("Modèle Claude indisponible.");
+  throw lastError || new Error("Modele Claude indisponible.");
 }
 
 async function requestClaudeEpisode(seed, attempt, model) {
@@ -198,7 +200,7 @@ async function requestClaudeEpisode(seed, attempt, model) {
         {
           type: "web_search_20250305",
           name: "web_search",
-          max_uses: 3,
+          max_uses: 2,
         },
       ],
       messages: [
@@ -258,202 +260,80 @@ async function createEpisodeWithQualityRetry(createEpisode) {
   throw lastError || new Error(QUALITY_ERROR_MESSAGE);
 }
 
-function buildPrompt({ artist, title, album }, attempt = 1, options = {}) {
-  const researchRules = options.useWebSearch
-    ? `
-Règles de recherche web obligatoires :
-- avant d’écrire les chroniques, utilise web_search ;
-- cherche des informations factuelles sur l’artiste et le morceau choisi ;
-- cherche le contexte de production, l’album, l’année, les collaborateurs, la réception, les paroles ou la scène associée ;
-- utilise uniquement des faits trouvés dans les résultats ou des connaissances générales très établies ;
-- si la recherche ne donne rien d’utile, reste prudent et général, n’invente jamais ;
-- ne raconte pas tes recherches dans la réponse finale ;
-- n’inclus jamais de balises de citation, de références ou de marqueurs comme <cite> dans le JSON ;
-- retourne uniquement le JSON demandé.
-`
-    : "";
+/**
+ * Construit le prompt utilisateur avec approche few-shot :
+ * un exemple PARFAIT et un exemple INTERDIT pour guider le modele.
+ */
+function buildPrompt(seed, attempt, options) {
+  const { artist, title, album } = seed;
+  const useWebSearch = options && options.useWebSearch;
 
-  return `
-Titre choisi par l’utilisateur :
-{
-  "artist": "${artist}",
-  "title": "${title}"
-}
-${album ? `Album Deezer du morceau choisi : "${album}".` : ""}
-${attempt > 1 ? "IMPORTANT : la version précédente a été refusée car elle manquait de faits concrets. Recommence avec plus de dates, de contexte de sortie, de paroles, de production, de réception et d’anecdotes vérifiables dans chaque chronique." : ""}
-${researchRules}
+  const lines = [];
 
-Tu es Radio Charlie, un moteur premium français de récit musical.
+  lines.push("Morceau choisi : " + artist + " - " + title + (album ? " (album : " + album + ")" : ""));
+  lines.push("");
 
-Radio Charlie crée des podcasts musicaux intelligents à partir d’un morceau choisi.
-Le but n’est pas de décrire la musique.
-Le but est de raconter ce qui existe au-delà du son :
-l’histoire, le contexte, la tension humaine, les paroles, la scène, la production et l’impact culturel.
+  if (attempt > 1) {
+    lines.push("ATTENTION : version precedente refusee. Chaque chronique DOIT contenir une date, une anecdote concrete et deux details verifiables (album, label, studio, paroles, classement, scene). Recommence avec plus de faits.");
+    lines.push("");
+  }
 
-Niveau éditorial attendu :
-- vise une vraie chronique documentée, pas une ambiance ;
-- chaque intervention doit contenir des faits que l’auditeur pourrait vérifier ;
-- cherche l’anecdote, le détail de studio, le moment de carrière, la réception, le malentendu public, la scène locale, la date qui change tout ;
-- si tu n’as qu’une impression esthétique à dire, choisis un autre titre ou un autre angle.
+  if (useWebSearch) {
+    lines.push("ETAPE 1 - RECHERCHE (fais 1-2 recherches avant d'ecrire) :");
+    lines.push("- \"" + artist + " " + title + " contexte album production\"");
+    lines.push("- \"" + artist + " biographie date\"");
+    lines.push("Utilise seulement des faits trouves ou des connaissances tres etablies. Ne cite jamais un fait incertain - decris ce qu'on entend plutot qu'inventer. Ne mentionne pas tes recherches dans le JSON. Pas de balises <cite>.");
+    lines.push("");
+    lines.push("ETAPE 2 - REDACTION :");
+    lines.push("");
+  }
 
-Langue :
-- français uniquement ;
-- français parlé naturel ;
-- dense, vivant, précis ;
-- ton : France Culture + Radio Nova + Arte ;
-- chaleureux, intelligent, jamais académique, jamais prétentieux.
+  lines.push("MISSION : Tu es Radio Charlie. Cree un podcast editorial de 8 titres.");
+  lines.push("Radio Charlie ne decrit pas la musique. Elle raconte ce qui existe au-dela du son : l'histoire, le contexte, les paroles, la scene, la production, l'impact.");
+  lines.push("");
 
-Ta mission :
-Créer un podcast éditorial complet en 8 titres.
+  lines.push("=== EXEMPLE PARFAIT (niveau attendu) ===");
+  lines.push("Artiste: Daft Punk | Titre: Get Lucky | Role: opener");
+  lines.push("Chronique: \"En 2013, Daft Punk revient apres huit ans de silence avec un choix qui prend tout le monde a revers : plutot que de confirmer leur statut de robots de l'electronique, ils enregistrent Random Access Memories entierement en instruments live, dans plusieurs studios dont Electric Lady a New York. Get Lucky est produit avec Pharrell Williams et Nile Rodgers, guitariste de Chic, approche specialement pour ce disque apres des annees sans collaboration majeure. Le titre sort en avril 2013, devient leur premier single a atteindre le top 10 britannique depuis vingt ans, et depasse 100 millions de streams en quelques semaines. Ce qui change tout : Nile Rodgers joue sa guitare sans click track pour retrouver le feeling flottant du funk des annees 70. Le paradoxe parfait : les architectes de la musique de machine choisissent la chair pour leur retour.\"");
+  lines.push("");
+  lines.push("=== EXEMPLE INTERDIT (ne jamais ecrire ca) ===");
+  lines.push("Chronique: \"Get Lucky est un titre incontournable de Daft Punk qui revele leur univers sonore unique. Le morceau illustre parfaitement leur talent pour melanger les genres et creer une atmosphere envoûtante. C'est une chanson qui transcende les epoques et touche tous les publics. Un chef-d'oeuvre de la musique electronique.\"");
+  lines.push("");
+  lines.push("MOTS INTERDITS dans toutes les chroniques : emblematique, univers sonore, chef-d'oeuvre, incontournable, transcende, envoûtant, unique en son genre.");
+  lines.push("");
 
-Le titre choisi n’est pas forcément le sujet central.
-Il sert de premier signal : à toi d’en tirer le parcours humain le plus intéressant.
+  lines.push("PLAYLIST : 8 titres, roles dans cet ordre :");
+  lines.push("1. opener - ouvre et pose la tension humaine");
+  lines.push("2. origin - une source, une scene, une blessure initiale");
+  lines.push("3. rupture - une cassure, un risque, un deplacement");
+  lines.push("4. contrast - opposition de ton, d'epoque ou de statut");
+  lines.push("5. hidden influence - influence moins evidente, un cousinage");
+  lines.push("6. turning point - moment ou quelque chose bascule");
+  lines.push("7. consequence - ce que cette bascule produit ensuite");
+  lines.push("8. closing statement - ferme avec une idee forte");
+  lines.push("");
+  lines.push("Regles : Titre 1 = le morceau choisi. Coherence culturelle (meme langue/scene). Titres disponibles sur Deezer.");
+  lines.push("");
 
-Le podcast doit contenir :
-- une playlist de 8 titres ;
-- une chronique éditoriale riche avant chaque titre ;
-- chaque chronique doit apprendre quelque chose de concret : une anecdote, un fait, une date, une relation artistique, une controverse ou un contexte de sortie ;
-- chaque chronique doit apporter des informations nouvelles, sans répéter une autre chronique.
+  lines.push("REGLES CHRONIQUES (120-160 mots chacune) :");
+  lines.push("- Accroche : une scene, un moment, une tension (pas une definition)");
+  lines.push("- Au moins une date ou annee precise");
+  lines.push("- Au moins deux details concrets parmi : album, label, studio, producteur, paroles, classement, clip, sample, scene, collaboration, controverse");
+  lines.push("- Conclusion : pourquoi ce morceau est la dans ce podcast");
+  lines.push("- Ton oral, vivant (France Culture + Radio Nova), jamais scolaire");
+  lines.push("- Chaque chronique apporte des informations nouvelles (pas de repetition)");
+  lines.push("");
 
-Règles pour l’angle éditorial :
-L’angle doit être humain, pas abstrait.
-Évite les angles vagues comme :
-- "l’évolution du rap" ;
-- "le minimalisme en musique" ;
-- "les morceaux qui ont tout changé".
+  lines.push("FORMAT : JSON valide uniquement. Aucun texte hors JSON. Aucun markdown.");
+  lines.push("");
+  lines.push('Schema : { "title": "string", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 120-160 mots" }, ...] }');
 
-Préfère les angles liés à :
-- un moment de carrière ;
-- une contradiction ;
-- une scène ;
-- une tension personnelle ;
-- un basculement culturel ;
-- une controverse publique ;
-- un changement dans la façon dont les artistes parlent, écrivent, enregistrent ou existent publiquement.
-
-Règles pour la playlist :
-- 8 titres au total ;
-- le titre 1 doit généralement être le morceau sélectionné ;
-- la playlist doit être culturellement cohérente ;
-- privilégie la même langue, la même scène, la même époque ou une scène voisine clairement justifiée ;
-- ne saute pas au hasard du rap français au rap américain, ou d’une scène à une autre, sans que l’angle l’explique clairement ;
-- chaque titre doit avoir une raison éditoriale précise d’être là, qui doit se comprendre dans sa chronique ;
-- évite les playlists génériques de "même genre" ;
-- choisis des titres assez connus ou disponibles pour être retrouvés via l’API Deezer.
-
-La playlist doit donner l’impression d’être pensée par un grand disquaire :
-- cohérence d’ensemble ;
-- surprise réelle, mais justifiée ;
-- pertinence culturelle ;
-- progression émotionnelle ;
-- logique éditoriale lisible.
-
-Chaque titre doit jouer un rôle précis dans le parcours, dans cet ordre exact :
-1. "opener" : ouvre la porte et pose le trouble humain ;
-2. "origin" : montre une source, une scène, une méthode ou une blessure initiale ;
-3. "rupture" : introduit une cassure, une prise de risque ou un déplacement ;
-4. "contrast" : éclaire l’angle par une opposition de ton, d’époque, de statut ou de langage ;
-5. "hidden influence" : révèle une influence moins évidente, un souterrain, une dette ou un cousinage ;
-6. "turning point" : marque le moment où quelque chose bascule publiquement ou artistiquement ;
-7. "consequence" : montre ce que cette bascule produit ensuite ;
-8. "closing statement" : ferme le podcast avec une idée forte, pas seulement avec un morceau calme.
-
-Le champ "role" de chaque piste doit reprendre exactement l’un de ces 8 rôles, dans cet ordre.
-Règles pour les chroniques :
-Chaque chronique doit être dense, utile et assez développée pour porter une vraie écoute radio.
-Objectif MVP privé : 120 à 170 mots par chronique.
-Chaque chronique doit ressembler à un mini-récit oral, pas à une notice : une accroche humaine, une anecdote ou tension concrète, deux faits précis, puis une idée qui donne envie d’écouter le morceau autrement.
-
-Structure obligatoire de chaque chronique :
-1. une phrase d’accroche qui pose un moment, une scène ou une tension ;
-2. au moins deux faits précis, dont au moins une date, une année ou une période claire ;
-3. un détail de contexte parmi production, label, studio, clip, paroles, réception, classement, controverse, sample, collaboration ou scène locale ;
-4. une conclusion qui explique pourquoi ce morceau sert le parcours éditorial.
-
-Chaque chronique doit inclure au moins 4 catégories différentes parmi :
-- contexte de sortie : date, album, moment de carrière ;
-- situation de l’artiste : pression, controverse, percée, déclin, réinvention ;
-- paroles : ce que la chanson dit réellement ;
-- contradiction : ce qui ne s’aligne pas complètement entre image, texte, son ou contexte ;
-- production : producteur, beat, sample, studio, choix d’enregistrement, choix de mix ;
-- scène : ville, label, collectif, écosystème musical ;
-- réception : classement, streams, certifications, réaction publique, viralité ;
-- impact culturel : ce que le morceau a changé ou révélé.
-
-Règle critique :
-Chaque paragraphe doit introduire un nouveau type d’information.
-Ne répète pas la même idée avec d’autres mots.
-Ne répète pas l’angle principal dans chaque chronique.
-N’écris pas de remplissage.
-Privilégie les détails qui donnent de la chair : une époque, une scène, une tension biographique, une réception publique, un choix de studio, une phrase ou idée des paroles.
-
-À rechercher explicitement :
-- les dates de sortie, albums, labels, producteurs, studios, villes, scènes, collectifs ;
-- les anecdotes de création ou de réception ;
-- les paroles ou idées précises de la chanson ;
-- les controverses, malentendus, accusations, ruptures de carrière, bascules de public ;
-- les liens entre artistes : influence réelle, collaboration, opposition, héritage ou réponse culturelle.
-
-Exemples de niveau de précision attendu :
-- pas "le morceau révèle une époque", mais "en 1998, sur l’album concerné, le groupe durcit son son au moment où les tensions internes deviennent visibles" ;
-- pas "la chanson est intime", mais "le texte parle d’une surveillance amoureuse, et le clip transforme cette jalousie en décor concret" ;
-- pas "la production est moderne", mais "les percussions, la voix très proche et les choix de mix déplacent une tradition vers une architecture pop sèche".
-
-Chaque chronique doit répondre :
-"Qu’est-ce que l’auditeur apprend ici qu’il ne savait pas avant ?"
-
-Si une chronique peut se résumer à "ce morceau est important parce qu’il est émotionnel / réussi / unique", réécris-la.
-
-À éviter absolument :
-- éloge générique ;
-- analyse abstraite ;
-- phrases vagues ;
-- "ce morceau est emblématique" ;
-- "l’artiste impose son univers" ;
-- "une ambiance unique" ;
-- "on continue le voyage" ;
-- ton de dissertation scolaire.
-
-Exactitude :
-- l’exactitude passe avant le style ;
-- ne cite jamais un producteur, label, studio, musicien, sample, réalisateur, année ou lieu si tu n’es pas sûr ;
-- si tu as un doute, décris une clé d’écoute vérifiable dans le son au lieu d’inventer ;
-- une chronique belle mais fausse est interdite ;
-- vérifie mentalement chaque nom propre avant de l’écrire.
-
-Format de sortie :
-Retourne uniquement du JSON valide.
-N’ajoute aucun commentaire, aucun markdown, aucun texte hors JSON.
-
-Schéma :
-{
-  "title": "string",
-  "tracks": [
-    {
-      "role": "opener",
-      "artist": "string",
-      "title": "string",
-      "chronicle": "chronique orale française riche, documentée, 120 à 170 mots"
-    }
-  ]
-}
-
-Auto-vérification avant de répondre :
-Pour chaque chronique, vérifie :
-- y a-t-il au moins une date, année ou période claire ?
-- y a-t-il au moins deux détails concrets parmi album, producteur, label, lieu, scène, clip, paroles, controverse, fait de classement, réception ou détail vérifiable ?
-- y a-t-il une anecdote ou une tension humaine identifiable ?
-- contient-elle des paroles ou du contexte, pas seulement de la production ?
-- évite-t-elle de répéter une autre chronique ?
-- ressemble-t-elle à une vraie histoire, pas à une description ?
-
-Si une chronique échoue, réécris-la avant de retourner le JSON.
-`.trim();
+  return lines.join("\n");
 }
 
 function parseEpisode(content) {
   if (!content) {
-    throw new Error("Réponse IA vide.");
+    throw new Error("Reponse IA vide.");
   }
 
   return JSON.parse(
@@ -515,7 +395,7 @@ function isCompleteEpisode(episode) {
 function isEditorialChronicle(value) {
   const text = cleanText(value);
   const wordCount = text.split(/\s+/).filter(Boolean).length;
-  const hasDate = /\b(?:19|20)\d{2}\b|\bannées?\s+(?:60|70|80|90|2000|2010|2020)\b/i.test(text);
+  const hasDate = /\b(?:19|20)\d{2}\b|\bannees?\s+(?:60|70|80|90|2000|2010|2020)\b/i.test(text);
   const concreteSignals = [
     /\balbum\b/i,
     /\blabel\b/i,
@@ -526,7 +406,7 @@ function isEditorialChronicle(value) {
     /\bsample\b/i,
     /\bclassement\b/i,
     /\bcontroverse\b/i,
-    /\bscène\b/i,
+    /\bscène\b|\bscene\b/i,
     /\bcollectif\b/i,
     /\bville\b/i,
     /\bsort(?:i|ie|ent)\b/i,
@@ -540,8 +420,8 @@ function isRetryableGenerationError(error) {
   const message = String(error?.message || "").toLowerCase();
 
   return (
-    message.includes("qualité éditoriale") ||
-    message.includes("réponse ia vide") ||
+    message.includes("qualite") ||
+    message.includes("reponse ia vide") ||
     message.includes("json") ||
     message.includes("unexpected token")
   );
@@ -586,7 +466,7 @@ function getAiUserMessage(error) {
   const lowerMessage = message.toLowerCase();
 
   if (lowerMessage.includes("quota") || lowerMessage.includes("billing")) {
-    return "Le quota de la clé IA est épuisé. Vérifie le crédit ou la facturation du compte.";
+    return "Le quota de la cle IA est epuise. Verifie le credit ou la facturation du compte.";
   }
 
   if (
@@ -594,22 +474,22 @@ function getAiUserMessage(error) {
     lowerMessage.includes("incorrect api key") ||
     lowerMessage.includes("invalid x-api-key")
   ) {
-    return "La clé IA est invalide. Vérifie ANTHROPIC_API_KEY ou OPENAI_API_KEY.";
+    return "La cle IA est invalide. Verifie ANTHROPIC_API_KEY ou OPENAI_API_KEY.";
   }
 
   if (lowerMessage.includes("model")) {
-    return "Le modèle IA configuré n’est pas disponible pour cette clé.";
+    return "Le modele IA configure n'est pas disponible pour cette cle.";
   }
 
   if (lowerMessage.includes("web_search") || lowerMessage.includes("web search")) {
-    return "La recherche web Claude n’est pas activée pour cette clé. Active Web Search dans la console Anthropic.";
+    return "La recherche web Claude n'est pas activee pour cette cle. Active Web Search dans la console Anthropic.";
   }
 
-  if (lowerMessage.includes("qualité éditoriale")) {
-    return "L’IA a produit un podcast trop pauvre en faits. Relance la génération pour obtenir une version plus documentée.";
+  if (lowerMessage.includes("qualite")) {
+    return "L'IA a produit un podcast trop pauvre en faits. Relance la generation pour une version plus documentee.";
   }
 
-  return "L’IA ne répond pas pour le moment.";
+  return "L'IA ne repond pas pour le moment.";
 }
 
 function json(statusCode, body) {
