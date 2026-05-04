@@ -44,6 +44,9 @@ exports.handler = async (event) => {
     aiMaxTokens: Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 3000),
     voiceProvider:
       process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID ? "elevenlabs" : "browser",
+    webSearch: aiProvider === "claude"
+      ? Boolean(process.env.ANTHROPIC_API_KEY)
+      : Boolean(process.env.TAVILY_API_KEY),
     qualityGate: process.env.RADIO_CHARLIE_QUALITY_GATE !== "false" && process.env.RADIO_CHARLIE_STRICT_AI !== "false",
   });
 };
