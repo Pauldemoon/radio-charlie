@@ -691,13 +691,13 @@ Préfère :
 - une controverse ou un basculement public.
 
 Règles pour la playlist — portrait d’artiste :
-C’est un documentaire sonore sur UN artiste. Toute la playlist tourne autour de lui.
+Le fil conducteur est l’histoire D’UN artiste. Mais la playlist peut inclure d’autres artistes quand ils éclairent cette histoire.
 - 8 titres au total ;
 - le titre 1 doit être exactement le morceau sélectionné : même artiste, même titre ;
-- les titres 2 à 8 sont en grande majorité des morceaux DE CET ARTISTE, choisis pour raconter différents chapitres de sa carrière ;
-- quelques collaborations sont acceptables (un featuring, un remix, une co-composition) si elles éclairent un moment clé de son histoire ;
-- la playlist doit tracer un ARC NARRATIF : naissance, basculement, maturité, héritage ;
-- chaque titre doit être justifiable par une phrase qui commence par "À ce moment de sa vie..." ou "C’est le morceau où..." ;
+- les autres titres peuvent être : d’autres morceaux du même artiste, ses influences directes, ses collaborations, ses contemporains qui contextualisent son histoire, ou ses héritiers qui montrent son impact ;
+- chaque titre doit servir le portrait — la question est toujours "en quoi ce morceau éclaire-t-il l’histoire de cet artiste ?" ;
+- la playlist doit tracer un ARC NARRATIF lisible : d’où il vient, ce qui l’a formé, le moment où tout a basculé, ce qu’il a produit ;
+- évite les titres qui n’ont aucun lien narratif avec l’artiste central ;
 - choisis des titres assez connus pour être retrouvés via l’API Deezer.
 
 Chaque titre doit jouer un rôle précis dans le portrait, dans cet ordre exact :
