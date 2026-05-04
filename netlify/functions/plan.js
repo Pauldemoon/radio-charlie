@@ -443,10 +443,11 @@ function buildPrompt(seed, attempt, options) {
   lines.push("Le titre du podcast exprime ce fil.");
   lines.push("");
   lines.push("INTRO (2-3 phrases, lue a voix haute avant le premier morceau) :");
-  lines.push("- Pose le fil conducteur de facon narrative et concrete");
-  lines.push("- Commence par un fait, une scene ou une tension — pas 'ce soir on va...'");
-  lines.push("- Donne envie d'ecouter sans tout raconter");
-  lines.push('- Exemple : "En 2006, Phoenix s\'enferme dans des studios berlinois ou l\'electricite coupe sans prevenir. Plutot que de combattre ces imperfections, ils les gardent — premieres prises, bruits parasites et tout. Ce podcast suit ce moment precis ou un groupe decide d\'arreter de se controler."');
+  lines.push("- Presente le sujet et le voyage de ce podcast : qui, quoi, pourquoi maintenant");
+  lines.push("- Ton chaleureux de presentateur radio qui accueille l'auditeur");
+  lines.push("- Dit clairement de quoi on va parler et ce qu'on va decouvrir — pas de metaphore, pas de paradoxe");
+  lines.push("- Donne envie d'ecouter la suite");
+  lines.push('- Exemple pour Tame Impala : "Ce podcast suit la trajectoire de Kevin Parker, musicien australien qui a fabrique seul chaque note de ses albums depuis sa chambre de Perth. On va remonter dix ans de transformation — du rock psychedelique enregistre dans l\'isolement jusqu\'aux collaborations avec Dua Lipa et Justice. Un parcours qui dit quelque chose sur ce que la solitude peut produire."');
   lines.push("");
 
   // ── EXEMPLE PARFAIT ────────────────────────────────────────────────────────
