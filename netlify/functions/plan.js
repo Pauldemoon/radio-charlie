@@ -59,7 +59,7 @@ const EPISODE_SCHEMA = {
 };
 
 const SYSTEM_PROMPT =
-  "Tu es Radio Charlie, une redaction musicale francaise exigeante. Tu fabriques des chroniques radio avec anecdotes, dates, contexte historique, faits verifiables, paroles, production, reception et consequences culturelles. Ton style est oral, vivant, precis, jamais scolaire, jamais vague. Tu reponds uniquement en JSON valide.";
+  "Tu es Radio Charlie, une redaction musicale francaise. Ta valeur est dans les faits precis et surprenants — pas dans les adjectifs ni les analyses. Pour chaque morceau, tu cherches ce que la plupart des gens ne savent pas : l'anecdote de studio, la connexion inattendue, le chiffre qui etonne, le contexte qui change tout. Style oral, vivant, jamais scolaire. JSON valide uniquement.";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -352,104 +352,85 @@ function buildPrompt(seed, attempt, options) {
 
   if (attempt > 1) {
     lines.push(
-      "ATTENTION : version precedente refusee. Chaque chronique DOIT contenir une date, une anecdote concrete, deux details verifiables. Recommence avec plus de faits.",
+      "ATTENTION : version precedente refusee. Les chroniques manquaient de faits precis et surprenants. Evite les generalites et les adjectifs. Recommence avec de vraies informations.",
     );
     lines.push("");
   }
 
   // ── RECHERCHE (Claude uniquement) ──────────────────────────────────────────
   if (useWebSearch) {
-    lines.push("ETAPE 1 - RECHERCHE (1-2 recherches) :");
-    lines.push('- "' + artist + " " + title + ' album production context"');
-    lines.push('- "' + artist + " biographie scene date\"");
+    lines.push("ETAPE 1 - RECHERCHE (fais 1-2 recherches) :");
+    lines.push('- "' + artist + " " + title + ' anecdote recording story behind"');
+    lines.push('- "' + artist + ' biography interview unexpected"');
     lines.push(
-      "Utilise seulement des faits trouves ou tres etablis. Aucun fait incertain. Ne mentionne pas tes recherches dans le JSON. Pas de balises <cite>.",
+      "Cherche des faits qui etonnent : anecdotes de studio, connexions inattendues, contexte historique oublie, chiffres precis, tensions biographiques.",
     );
+    lines.push("Utilise seulement des faits trouves ou tres etablis. Ne mentionne pas tes recherches dans le JSON. Pas de balises <cite>.");
     lines.push("");
   }
 
-  // ── ANGLE EDITORIAL ────────────────────────────────────────────────────────
-  const etapeAngle = useWebSearch ? "ETAPE 2" : "ETAPE 1";
-  lines.push(etapeAngle + " - ANGLE EDITORIAL");
+  // ── MISSION ────────────────────────────────────────────────────────────────
+  lines.push("MISSION : Radio Charlie. Playlist de 8 titres avec une raison d'exister.");
   lines.push("");
   lines.push(
-    "Avant de choisir les titres, definis l'angle de ce podcast. L'angle est la raison d'etre du podcast : pourquoi ces morceaux ensemble, aujourd'hui, pour quelqu'un qui ecoute.",
+    "FIL CONDUCTEUR : une phrase qui explique pourquoi ces 8 titres ensemble — pas un genre, pas une epoque, pas 'Autour de X'.",
   );
-  lines.push("");
-  lines.push("L'angle N'EST PAS :");
-  lines.push('- Un genre : "rap francais", "electro des annees 90"');
-  lines.push('- Une epoque : "les annees 80", "le son New York"');
-  lines.push('- Une description : "les influences de l\'artiste", "l\'univers de X"');
-  lines.push("");
-  lines.push("L'angle EST une tension humaine ou un paradoxe specifique :");
-  lines.push('- "Ce que devient un artiste quand son public grandit plus vite que lui"');
-  lines.push('- "La trahison comme moteur de creation"');
-  lines.push('- "Quand le succes commercial detruit exactement ce qui rendait l\'artiste interessant"');
-  lines.push('- "L\'art de disparaitre au sommet et de revenir different"');
-  lines.push('- "Comment une ville invente un son que personne n\'avait commande"');
-  lines.push('- "Ce qu\'on fait avec la rage quand on n\'a plus les mots"');
-  lines.push("");
-  lines.push("Criteres : une phrase. Assez specifique pour exclure 90% des artistes. Suggere une histoire.");
-  lines.push("");
-  lines.push("Le titre du podcast EXPRIME cet angle — pas 'Autour de X', pas 'Le meilleur de X'.");
-  lines.push("La conclusion de CHAQUE chronique doit faire le lien avec cet angle.");
+  lines.push("Le titre du podcast exprime ce fil.");
   lines.push("");
 
   // ── EXEMPLE PARFAIT ────────────────────────────────────────────────────────
-  const etapePlaylist = useWebSearch ? "ETAPE 3" : "ETAPE 2";
-  lines.push(etapePlaylist + " - PLAYLIST ET CHRONIQUES");
-  lines.push("");
   lines.push("=== EXEMPLE PARFAIT (niveau attendu) ===");
-  lines.push("Angle : L'art de disparaitre au sommet et de revenir different");
-  lines.push("Titre podcast : Les Fantomes Reviennent Toujours");
   lines.push("Artiste: Daft Punk | Titre: Get Lucky | Role: opener");
   lines.push(
-    'Chronique: "En 2013, Daft Punk revient apres huit ans de silence avec un choix qui prend tout le monde a revers : plutot que de confirmer leur statut de pionniers de l\'electronique, ils enregistrent Random Access Memories entierement en instruments live. Get Lucky nait de la rencontre avec Nile Rodgers, guitariste de Chic, et Pharrell Williams approche specialement pour ce disque. Sorti en avril 2013, le titre devient leur premier top 10 britannique depuis vingt ans et depasse cent millions de streams en quelques semaines. Detail cle : Rodgers joue sa guitare sans click track pour retrouver le feeling flottant du funk des annees 70. Paradoxe parfait — les architectes de la musique de machine choisissent la chair pour leur retour."',
+    'Chronique: "En 2013, Daft Punk revient apres huit ans de silence avec un choix paradoxal : les pionniers de l\'electronique enregistrent Random Access Memories entierement en instruments live. Get Lucky nait d\'une rencontre calculee — Nile Rodgers, guitariste de Chic, joue sa guitare sans click track pour retrouver le feeling flottant du funk des annees 70. Sorti en avril 2013, le titre devient leur premier top 10 britannique depuis vingt ans. Fait peu connu : c\'est la voix falsettee de Pharrell qui a convaincu Thomas Bangalter d\'abandonner les voix robotisees pour ce retour. Les architectes de la musique de machine avaient choisi la chair."',
   );
   lines.push("");
   lines.push("=== EXEMPLE INTERDIT (ne jamais ecrire ca) ===");
   lines.push(
-    "Chronique: \"Get Lucky est un titre incontournable de Daft Punk qui revele leur univers sonore unique. Le morceau illustre parfaitement leur talent pour melanger les genres et creer une atmosphere envoûtante. C'est une chanson qui transcende les epoques et touche tous les publics.\"",
+    "Chronique: \"Get Lucky est un titre incontournable de Daft Punk qui revele leur univers sonore unique. Le morceau illustre parfaitement leur talent pour melanger les genres et creer une atmosphere envoûtante.\"",
   );
   lines.push("");
   lines.push(
-    "MOTS INTERDITS : emblematique, univers sonore, chef-d'oeuvre, incontournable, transcende, envoûtant, unique en son genre, intemporel.",
+    "MOTS INTERDITS : emblematique, univers sonore, chef-d'oeuvre, incontournable, transcende, envoûtant, unique en son genre, intemporel, fascinant, magistral.",
   );
   lines.push("");
 
-  // ── STRUCTURE PLAYLIST ─────────────────────────────────────────────────────
+  // ── PLAYLIST ───────────────────────────────────────────────────────────────
   lines.push("PLAYLIST : 8 titres, roles dans cet ordre :");
-  lines.push("1. opener        - ouvre et pose la tension de l'angle");
-  lines.push("2. origin        - la source : scene, blessure, point de depart");
-  lines.push("3. rupture       - une cassure, un risque, un deplacement");
-  lines.push("4. contrast      - opposition de ton, d'epoque ou de statut");
-  lines.push("5. hidden influence - cousinage moins evident, influence inattendue");
-  lines.push("6. turning point - le moment ou quelque chose bascule");
-  lines.push("7. consequence   - ce que ce basculement a produit ensuite");
-  lines.push("8. closing statement - ferme le propos avec une idee forte");
+  lines.push("1. opener           - ouvre et pose le ton");
+  lines.push("2. origin           - la source : scene, influence, point de depart");
+  lines.push("3. rupture          - une cassure, un risque, un deplacement");
+  lines.push("4. contrast         - opposition de ton, d'epoque ou de statut");
+  lines.push("5. hidden influence - connexion inattendue, cousinage surprenant");
+  lines.push("6. turning point    - le moment ou quelque chose a bascule");
+  lines.push("7. consequence      - ce que ce basculement a produit");
+  lines.push("8. closing statement- ferme avec une idee forte");
   lines.push("");
   lines.push(
-    "Regles : Titre 1 = le morceau choisi. Coherence culturelle (meme langue/scene/epoque). Titres disponibles sur Deezer.",
+    "Regles : Titre 1 = le morceau choisi. Coherence culturelle (meme langue ou scene). Disponibles sur Deezer.",
   );
   lines.push("");
 
   // ── REGLES CHRONIQUES ──────────────────────────────────────────────────────
   lines.push("REGLES CHRONIQUES (100-120 mots chacune) :");
-  lines.push("- Accroche : une scene, un moment precis, une tension — pas une definition");
-  lines.push("- Au moins une date ou annee precise");
+  lines.push("- Ouvre sur une scene, un fait precis ou un moment — jamais une definition");
   lines.push(
-    "- Au moins deux details concrets : album, label, studio, producteur, paroles, classement, clip, sample, scene, collaboration, controverse",
+    "- PRIORITE ABSOLUE : au moins un fait que quelqu'un qui connait l'artiste ne sait probablement pas",
   );
-  lines.push("- Conclusion : lien explicite avec l'angle du podcast");
-  lines.push("- Ton oral, vivant (France Culture + Radio Nova), jamais scolaire ni encyclopedique");
-  lines.push("- Chaque chronique apporte des informations nouvelles — pas de repetitions entre titres");
+  lines.push(
+    "  Exemples : technique de studio precise, connexion inattendue avec un autre artiste, contexte historique peu connu, chiffre ou date qui etonne, anecdote biographique concrete",
+  );
+  lines.push("- Au moins une annee ou date precise");
+  lines.push("- Ton oral et vivant — pas scolaire, pas encyclopedique, pas de jargon critique");
+  lines.push("- Derniere phrase : pourquoi ce titre est dans cette playlist");
+  lines.push("- Chaque chronique apporte des faits nouveaux — zero repetition entre les 8 titres");
   lines.push("");
 
-  // ── FORMAT JSON ────────────────────────────────────────────────────────────
+  // ── FORMAT ─────────────────────────────────────────────────────────────────
   lines.push("FORMAT : JSON valide uniquement. Aucun texte hors JSON. Aucun markdown.");
   lines.push("");
   lines.push(
-    'Schema : { "title": "string", "angle": "string (la tension en une phrase)", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 100-120 mots" }, ...] }',
+    'Schema : { "title": "string", "angle": "string (le fil conducteur en une phrase)", "tracks": [{ "role": "opener", "artist": "string", "title": "string", "chronicle": "string 100-120 mots" }, ...] }',
   );
 
   return lines.join("\n");
