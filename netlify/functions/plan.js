@@ -1,5 +1,7 @@
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
 const CLAUDE_FALLBACK_MODELS = [
@@ -86,7 +88,11 @@ exports.handler = async (event) => {
     title,
     album: cleanText(body.album),
   };
-  const hasAiProvider = Boolean(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY);
+  const hasAiProvider = Boolean(
+    process.env.ANTHROPIC_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    process.env.DEEPSEEK_API_KEY,
+  );
 
   if (!artist || !title) {
     return json(400, { error: "artist et title sont requis." });
@@ -94,17 +100,26 @@ exports.handler = async (event) => {
 
   if (!hasAiProvider) {
     return json(500, {
-      error: "Aucune IA configuree. Ajoute ANTHROPIC_API_KEY ou OPENAI_API_KEY.",
+      error: "Aucune IA configuree. Ajoute ANTHROPIC_API_KEY, OPENAI_API_KEY ou DEEPSEEK_API_KEY.",
     });
   }
 
-  const provider = process.env.ANTHROPIC_API_KEY ? "claude" : "openai";
+  const provider = process.env.ANTHROPIC_API_KEY
+    ? "claude"
+    : process.env.DEEPSEEK_API_KEY
+      ? "deepseek"
+      : "openai";
   console.log(`[plan] start provider=${provider} artist="${seed.artist}" title="${seed.title}"`);
 
   try {
-    const episode = process.env.ANTHROPIC_API_KEY
-      ? await createClaudeEpisode(seed)
-      : await createOpenAiEpisode(seed);
+    let episode;
+    if (process.env.ANTHROPIC_API_KEY) {
+      episode = await createClaudeEpisode(seed);
+    } else if (process.env.DEEPSEEK_API_KEY) {
+      episode = await createDeepSeekEpisode(seed);
+    } else {
+      episode = await createOpenAiEpisode(seed);
+    }
     console.log(`[plan] success provider=${provider} episodeTitle="${episode.title}"`);
     return json(200, episode);
   } catch (error) {
@@ -156,6 +171,46 @@ async function requestOpenAiEpisode(seed, attempt) {
 
   if (!response.ok) {
     throw new Error(payload?.error?.message || "Erreur OpenAI.");
+  }
+
+  const content = payload?.choices?.[0]?.message?.content;
+  return normalizeEpisode(parseEpisode(content));
+}
+
+async function createDeepSeekEpisode(seed) {
+  return createEpisodeWithQualityRetry((attempt) => requestDeepSeekEpisode(seed, attempt));
+}
+
+async function requestDeepSeekEpisode(seed, attempt) {
+  console.log(`[plan/deepseek] attempt=${attempt} model=${DEEPSEEK_MODEL}`);
+  const response = await fetch(DEEPSEEK_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: DEEPSEEK_MODEL,
+      temperature: 0.78,
+      max_tokens: AI_MAX_TOKENS,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: SYSTEM_PROMPT,
+        },
+        {
+          role: "user",
+          content: buildPrompt(seed, attempt),
+        },
+      ],
+    }),
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || "Erreur DeepSeek.");
   }
 
   const content = payload?.choices?.[0]?.message?.content;
