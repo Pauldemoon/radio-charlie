@@ -1,14 +1,10 @@
-# macOS
-.DS_Store
-
-# Variables d'environnement (ne jamais pousser les clés API)
 .env
-.env.local
-.env.*
-
-# Node
-node_modules/
-
-# Archive locale
-Archive/
-Archive.zip
+.netlify
+.railway
+node_modules
+.git-codex
+.DS_Store
+*.log
+*.zip
+Radio-Charlie-Netlify-*/
+.git-protected-backup-*/
