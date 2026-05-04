@@ -274,23 +274,11 @@ async function enrichWithDeezer(tracks) {
 }
 
 async function playEpisode(runId, tracks) {
-  const intro = getEpisodeIntro(state.episode);
-  const firstTrack = tracks[0];
-  const firstChronicle = getTrackChronicle(firstTrack);
-
-  if (intro && firstTrack) {
-    updateCurrentTrack(firstTrack, 0, tracks.length);
-    setPlaybackState("Ouverture antenne");
-    prefetchSpeech(firstChronicle);
-
-    await speak(intro);
-    if (!isCurrentRun(runId)) return;
-
-    await wait(180);
-    if (!isCurrentRun(runId)) return;
-  } else {
-    prefetchSpeech(firstChronicle);
-  }
+  // Prefetch ALL speech (chronicles + transitions) in parallel at episode start
+  tracks.forEach((t) => {
+    prefetchSpeech(getTrackChronicle(t));
+    if (t.transition) prefetchSpeech(t.transition);
+  });
 
   for (let index = 0; index < tracks.length; index += 1) {
     if (!isCurrentRun(runId)) return;
@@ -304,16 +292,20 @@ async function playEpisode(runId, tracks) {
     await speak(chronicle);
     if (!isCurrentRun(runId)) return;
 
-    if (nextTrack) {
-      prefetchSpeech(getTrackChronicle(nextTrack));
-    }
-
     await wait(180);
     if (!isCurrentRun(runId)) return;
 
     setPlaybackState("En cours d’écoute");
     await playPreview(track.preview);
     if (!isCurrentRun(runId)) return;
+
+    if (nextTrack?.transition) {
+      await wait(400);
+      if (!isCurrentRun(runId)) return;
+      setPlaybackState("Voix antenne");
+      await speak(nextTrack.transition);
+      if (!isCurrentRun(runId)) return;
+    }
 
     await wait(320);
   }

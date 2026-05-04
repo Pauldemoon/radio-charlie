@@ -43,6 +43,7 @@ const EPISODE_SCHEMA = {
           title: { type: "string" },
           reason: { type: "string" },
           chronicle: { type: "string" },
+          transition: { type: "string" },
         },
       },
     },
@@ -700,6 +701,7 @@ Préfère les angles liés à :
 Règles pour la playlist :
 - 8 titres au total ;
 - le titre 1 doit être exactement le morceau sélectionné : même artiste, même titre ;
+- RÈGLE ABSOLUE DE DIVERSITÉ : les titres 2 à 8 doivent tous être des artistes différents entre eux ET différents de l'artiste du titre 1 ; une émission avec deux titres du même artiste est automatiquement refusée ;
 - la playlist doit être culturellement cohérente ;
 - privilégie la même langue, la même scène, la même époque ou une scène voisine clairement justifiée ;
 - ne saute pas au hasard du rap français au rap américain, ou d’une scène à une autre, sans que l’angle l’explique clairement ;
@@ -791,6 +793,15 @@ Exactitude :
 - vérifie mentalement chaque nom propre avant de l’écrire ;
 - exemple de vigilance : pour Rosalía / El Mal Querer, le producteur central connu est El Guincho.
 
+Transitions entre morceaux :
+Les titres 2 à 8 peuvent avoir un champ "transition" optionnel.
+Ce champ est lu à voix haute après la fin du morceau précédent, avant la chronique du titre suivant.
+Il doit faire exactement 1 phrase, maximum 18 mots.
+Il crée un pont sonore entre deux morceaux : pourquoi on passe de l’un à l’autre.
+Ne pas paraphraser la chronique suivante : la transition doit ajouter un lien, pas un résumé.
+Exemple acceptable : "C’est cette rupture que Jay-Z avait anticipée trois ans plus tôt."
+Exemple à éviter : "Maintenant, voici un autre morceau qui illustre l’angle de l’émission."
+
 Format de sortie :
 Retourne uniquement du JSON valide.
 N’ajoute aucun commentaire, aucun markdown, aucun texte hors JSON.
@@ -811,7 +822,8 @@ Schéma :
       "artist": "string",
       "title": "string",
       "reason": "pourquoi ce titre appartient à l’émission",
-      "chronicle": "chronique radio française naturelle, 36 à 48 mots, directe et rythmée"
+      "chronicle": "chronique radio française naturelle, 36 à 48 mots, directe et rythmée",
+      "transition": "1 phrase max 18 mots, pont vers ce titre (optionnel, absent sur le titre 1)"
     }
   ]
 }
@@ -915,6 +927,7 @@ function normalizeEpisode(episode) {
           title: cleanText(track.title || ""),
           reason: cleanText(track.reason || ""),
           chronicle: cleanText(track.chronicle || track.chronique || ""),
+          ...(track.transition ? { transition: cleanText(track.transition) } : {}),
         }))
       : episode.tracks,
   };
