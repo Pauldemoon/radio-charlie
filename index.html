@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta
       name="description"
-      content="Sillage FM génère une émission musicale à partir d'un morceau."
+      content="Radio Charlie génère un podcast musical intelligent à partir d'un morceau."
     >
-    <title>Sillage FM</title>
+    <title>Radio Charlie</title>
     <link rel="stylesheet" href="./style.css">
   </head>
   <body>
@@ -15,9 +15,10 @@
       <section id="home-screen" class="screen screen--active" aria-label="Accueil">
         <div class="hero">
           <div class="hero-copy">
-            <p class="station-kicker">Diffusion privée</p>
-            <h1>Sillage FM</h1>
-            <p class="station-line">Après le morceau, le sillage.</p>
+            <div class="brand-logo brand-logo--home" aria-label="Radio Charlie">
+              <img class="brand-logo-image" src="./assets/radio-charlie-logo-mark.png" alt="Radio Charlie">
+            </div>
+            <h1 class="sr-only">Radio Charlie</h1>
           </div>
 
           <form id="search-form" class="search" autocomplete="off">
@@ -31,43 +32,55 @@
             <button type="submit">Rechercher</button>
           </form>
 
-          <div class="suggestions" aria-label="Suggestions de morceaux">
-            <button type="button" data-query="Massive Attack Teardrop">Massive Attack</button>
-            <button type="button" data-query="Rosalia Malamente">Rosalía</button>
-            <button type="button" data-query="Daft Punk Veridis Quo">Daft Punk</button>
-          </div>
-
+          <p class="help">Choisissez un titre pour lancer un podcast.</p>
           <p id="search-message" class="message" role="status" aria-live="polite"></p>
         </div>
 
         <div id="results" class="results" aria-label="Résultats Deezer"></div>
-        <p class="page-tagline">SILLAGE FM</p>
+        <p class="page-tagline">Au-delà du son.</p>
       </section>
 
       <section id="loading-screen" class="screen loading-screen" aria-label="Chargement">
-        <p class="brand-logo brand-logo--status">Sillage FM</p>
-        <div class="loading-mark" aria-hidden="true">
-          <span></span>
-          <span></span>
-          <span></span>
+        <div class="brand-logo brand-logo--status" aria-label="Radio Charlie">
+          <img class="brand-logo-image" src="./assets/radio-charlie-logo-mark.png" alt="Radio Charlie">
+        </div>
+        <div class="fm-tuner" aria-hidden="true">
+          <div class="fm-band">
+            <span class="fm-glow"></span>
+            <span class="fm-needle"></span>
+            <div class="fm-scale">
+              <span>88</span>
+              <span>92</span>
+              <span>96</span>
+              <span>100</span>
+              <span>104</span>
+              <span>108</span>
+            </div>
+          </div>
         </div>
         <p id="loading-message" class="loading-message" role="status" aria-live="polite">
-          Sillage prépare l’émission…
+          Création du podcast en cours…
         </p>
+        <p id="loading-step" class="loading-step" aria-live="polite"></p>
       </section>
 
-      <section id="radio-screen" class="screen radio-screen" aria-label="Émission">
+      <section id="radio-screen" class="screen radio-screen" aria-label="Podcast">
         <header class="radio-header">
           <div>
-            <p class="brand-logo brand-logo--compact">Sillage FM</p>
-            <h2 id="radio-title">Émission en cours</h2>
+            <div class="brand-logo brand-logo--compact" aria-label="Radio Charlie">
+              <img class="brand-logo-image" src="./assets/radio-charlie-logo-mark.png" alt="Radio Charlie">
+            </div>
+            <h2 id="radio-title">Podcast</h2>
           </div>
           <div class="radio-actions">
             <button id="pause-button" class="secondary-button" type="button" disabled aria-pressed="false">
               Pause
             </button>
+            <button id="audio-unlock-button" class="primary-button" type="button" hidden>
+              Activer le son
+            </button>
             <button id="skip-button" class="secondary-button" type="button">Passer</button>
-            <button id="stop-button" class="danger-button" type="button">Arrêter l’émission</button>
+            <button id="stop-button" class="danger-button" type="button">Arrêter le podcast</button>
           </div>
         </header>
 
@@ -84,9 +97,8 @@
 
           <div class="now-copy">
             <div class="meta-row">
-              <span id="current-role" class="role-pill">Opener</span>
               <span id="progress" class="progress">1 / 8</span>
-              <span id="playback-state" class="state">Voix antenne</span>
+              <span id="playback-state" class="state">Charlie raconte…</span>
             </div>
             <div class="track-card">
               <p id="current-artist" class="artist"></p>
@@ -98,18 +110,39 @@
           </div>
         </section>
 
-        <ol id="queue" class="queue" aria-label="Playlist de l'émission"></ol>
+        <ol id="queue" class="queue" aria-label="Playlist du podcast"></ol>
       </section>
 
       <section id="end-screen" class="screen end-screen" aria-label="Fin">
-        <p class="brand-logo brand-logo--status">Sillage FM</p>
-        <h2>Fin de l’émission.</h2>
+        <div class="brand-logo brand-logo--status" aria-label="Radio Charlie">
+          <img class="brand-logo-image" src="./assets/radio-charlie-logo-mark.png" alt="Radio Charlie">
+        </div>
+        <h2>Fin du podcast.</h2>
         <button id="restart-button" class="primary-button" type="button">
           Relancer avec un autre morceau
         </button>
       </section>
+
+      <section id="error-screen" class="screen error-screen" aria-label="Erreur">
+        <div class="brand-logo brand-logo--status" aria-label="Radio Charlie">
+          <img class="brand-logo-image" src="./assets/radio-charlie-logo-mark.png" alt="Radio Charlie">
+        </div>
+        <h2>Quelque chose a mal tourné.</h2>
+        <p id="error-message" class="error-detail"></p>
+        <div class="error-actions">
+          <button id="error-retry-button" class="primary-button" type="button">
+            Réessayer
+          </button>
+          <button id="error-home-button" class="secondary-button" type="button">
+            Nouvelle recherche
+          </button>
+        </div>
+      </section>
     </main>
 
+    <script>
+      window.RADIO_CHARLIE_API_BASE_URL = "https://radio-charlie-production.up.railway.app";
+    </script>
     <script src="./app.js" defer></script>
   </body>
 </html>

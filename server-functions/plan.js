@@ -6,7 +6,7 @@ const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
 const TAVILY_API_URL = process.env.TAVILY_API_URL || "https://api.tavily.com/search";
 const AI_MAX_TOKENS = numberEnv("RADIO_CHARLIE_AI_MAX_TOKENS", 4500);
-const TAVILY_TIMEOUT_MS = numberEnv("TAVILY_TIMEOUT_MS", 5500);
+const TAVILY_TIMEOUT_MS = numberEnv("TAVILY_TIMEOUT_MS", 8000);
 const TAVILY_MAX_RESULTS = clampNumber(numberEnv("TAVILY_MAX_RESULTS", 5), 1, 8);
 const TAVILY_CACHE_TTL_MS = numberEnv("TAVILY_CACHE_TTL_MS", 60 * 60 * 1000);
 const MAX_SEED_FIELD_LENGTH = 160;
@@ -143,8 +143,11 @@ async function createEditorialWebContext(seed) {
   }
 
   try {
-    const payload = await searchTavily(buildTavilyQuery(seed));
-    const context = formatTavilyContext(payload, seed);
+    const queries = buildTavilyQueries(seed);
+    const payloads = await Promise.all(
+      queries.map((q) => searchTavily(q).catch(() => null)),
+    );
+    const context = formatMultiTavilyContext(payloads, seed);
 
     tavilyCache.set(cacheKey, {
       context,
@@ -168,15 +171,16 @@ function isTavilyEnabled() {
   return process.env.TAVILY_ENABLED !== "false" && Boolean(process.env.TAVILY_API_KEY);
 }
 
-function buildTavilyQuery(seed) {
-  const parts = [
-    `"${seed.artist}"`,
-    `"${seed.title}"`,
-    seed.album ? `"${seed.album}"` : "",
-    "song release album producer label context lyrics meaning reception",
-  ];
+function buildTavilyQueries(seed) {
+  const { artist, title, album } = seed;
+  const albumPart = album ? ` "${album}"` : "";
 
-  return parts.filter(Boolean).join(" ").slice(0, 360);
+  return [
+    // Requête 1 : le titre précis — production, sortie, sample, label, année
+    `"${artist}" "${title}"${albumPart} recording production release year label sample producer studio`.slice(0, 400),
+    // Requête 2 : l'artiste — biographie, scène, collaborateurs, anecdotes, impact culturel
+    `"${artist}" biography career discography influences collaborators scene anecdotes cultural impact`.slice(0, 400),
+  ];
 }
 
 async function searchTavily(query) {
@@ -235,33 +239,46 @@ function normalizeTavilySearchDepth(value) {
     return depth;
   }
 
-  return "basic";
+  return "advanced";
 }
 
-function formatTavilyContext(payload, seed) {
-  const results = Array.isArray(payload?.results) ? payload.results : [];
-  const sourceLines = results
-    .filter((result) => result?.title && result?.url && result?.content)
-    .slice(0, TAVILY_MAX_RESULTS)
-    .map((result, index) => {
-      const title = cleanText(result.title).slice(0, 140);
-      const url = cleanText(result.url).slice(0, 260);
-      const content = cleanText(result.content).slice(0, 430);
+function formatMultiTavilyContext(payloads, seed) {
+  const sectionLabels = [
+    `Titre "${seed.artist} — ${seed.title}" : production, enregistrement, sortie, sample, label`,
+    `Artiste "${seed.artist}" : biographie, scène, collaborateurs, anecdotes, impact culturel`,
+  ];
 
-      return `${index + 1}. ${title} — ${url} — ${content}`;
-    });
+  const sections = payloads
+    .map((payload, i) => {
+      if (!payload) return null;
 
-  if (!sourceLines.length) {
+      const results = Array.isArray(payload?.results) ? payload.results : [];
+      const lines = results
+        .filter((r) => r?.title && r?.content)
+        .slice(0, TAVILY_MAX_RESULTS)
+        .map((r, j) => {
+          const title = cleanText(r.title).slice(0, 120);
+          const content = cleanText(r.content).slice(0, 600);
+          return `  ${j + 1}. ${title} — ${content}`;
+        });
+
+      if (!lines.length) return null;
+
+      return `### ${sectionLabels[i] || `Recherche ${i + 1}`}\n${lines.join("\n")}`;
+    })
+    .filter(Boolean);
+
+  if (!sections.length) {
     return "";
   }
 
   return `
-Dossier web Tavily pour "${seed.artist} - ${seed.title}".
-Utilise ce dossier comme garde-fou factuel, pas comme texte à réciter.
-Ne cite pas les URL à l’antenne.
-Si une information n’est pas confirmée ici ou par ta connaissance fiable, reste prudent.
-Sources et extraits :
-${sourceLines.join("\n")}
+Dossier de recherche éditoriale pour "${seed.artist} — ${seed.title}".
+Extrais les faits précis : dates, noms, chiffres, anecdotes vérifiables, contexte de production.
+Ne cite pas les URL. Ne récite pas ces sources — transforme-les en matière éditoriale.
+Si une information ne figure pas ici et que tu n’en es pas sûr, ne l’invente pas.
+
+${sections.join("\n\n")}
 `.trim();
 }
 
