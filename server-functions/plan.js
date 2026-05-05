@@ -36,13 +36,14 @@ const EPISODE_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["role", "artist", "title", "reason", "chronicle"],
+        required: ["role", "artist", "title", "reason", "chronicle", "narrativeAngle"],
         properties: {
           role: { type: "string", enum: PLAYLIST_ROLES },
           artist: { type: "string" },
           title: { type: "string" },
           reason: { type: "string" },
           chronicle: { type: "string" },
+          narrativeAngle: { type: "string" },
         },
       },
     },
@@ -50,6 +51,58 @@ const EPISODE_SCHEMA = {
 };
 const SYSTEM_PROMPT =
   "Tu es Sillage FM, un rédacteur en chef radio français et programmateur musical. Tu construis des émissions à partir d’un morceau choisi, avec une progression claire, des faits sobres et une voix d’antenne naturelle. Tu écris pour l’oreille : phrases courtes, attaques directes, images concrètes, aucune formule vague. Tu réponds uniquement en JSON valide.";
+const NARRATIVE_STRUCTURES = [
+  ["L’Erreur Sacrée", "Un accident technique gardé parce qu’il devient la signature sonore du titre."],
+  ["Le Transfert", "Une chanson destinée à une autre star, refusée, puis enregistrée par son créateur."],
+  ["La Fausse Piste", "Une énergie joyeuse en surface, avec un texte tragique ou noir dessous."],
+  ["Le Cobaye", "Un instrument ou une technologie mal maîtrisée qui crée un son neuf."],
+  ["La Réponse Directe", "Un titre écrit pour répliquer à une attaque, un critique ou un autre artiste."],
+  ["Le Chant du Cygne", "Un groupe proche de la rupture qui jette ses dernières forces dans un titre."],
+  ["L’Obsession", "Des mois passés sur un détail minuscule qui finit par porter le morceau."],
+  ["La Lettre Ouverte", "Un texte adressé à une personne réelle sans toujours la nommer."],
+  ["Le Déguisement", "Un changement de nom, de masque ou de style pour dire autre chose."],
+  ["Le Vol Inconscient", "Une mélodie absorbée dans un souvenir puis transformée jusqu’à devenir autre."],
+  ["La Séance de Nuit", "La fatigue, l’isolement et les heures creuses qui changent la couleur du titre."],
+  ["Le Duel de Studio", "Un conflit entre artiste, producteur ou ingénieur du son qui modèle le disque."],
+  ["L’Oublié de la Pochette", "Un musicien discret ou non crédité dont une prise change tout."],
+  ["La Prophétie", "Des paroles qui annoncent un événement arrivé après la sortie."],
+  ["Le Retour de Flamme", "Un échec initial devenu hymne plus tard grâce au cinéma, à la publicité ou à un usage social."],
+  ["L’Angle Mort", "Un détail technique ou sonore ignoré du public qui révèle le morceau."],
+  ["Le Duel des Charts", "Un petit titre opposé à un géant de son époque dans les classements."],
+  ["La Métamorphose", "Un artiste venu d’un genre opposé bascule par nécessité ou accident."],
+  ["Le Flash", "Un tube écrit très vite, sous pression, dans une urgence vérifiable."],
+  ["Le Paradoxe", "La collision entre ombre et lumière, mélodie aimable et fond violent."],
+  ["Le Snapshot Géographique", "Une adresse, une rue, un studio ou une chambre comme point d’entrée."],
+  ["La Note de Frais", "Une dette, une taxe, un contrat ou une banqueroute qui force la création."],
+  ["L’Héritage Volé", "Partir d’un sample ou d’une reprise pour remonter à la source."],
+  ["Le Masque", "Un alter ego ou personnage fictif qui permet de dire une vérité directe."],
+  ["Le Déclic Anodin", "Un moment banal qui devient refrain, image ou idée centrale."],
+  ["La Séance Fantôme", "Un studio traversé par une dispute, un invité ou une présence décisive."],
+  ["Le Pari Perdu", "Personne ne croit au titre, sauf l’artiste ou un allié isolé."],
+  ["Le Miroir Social", "Une chanson liée à une grève, une élection, une crise ou un fait collectif."],
+  ["La Dernière Chance", "Le contrat ou le groupe menace de s’arrêter, et le titre sauve la suite."],
+  ["L’Effet Papillon", "Un événement minuscule ou lointain déclenche la chaîne qui mène au morceau."],
+  ["Le Vol à l’Arraché", "Un riff entendu ailleurs, mémorisé puis transformé avant d’être identifié."],
+  ["Le Syndrome de l’Imposteur", "L’artiste déteste son propre morceau, que l’entourage impose malgré lui."],
+  ["Le Duel Fratricide", "Deux membres en conflit enregistrent séparément, et la tension donne l’énergie."],
+  ["Le Sample Fantôme", "Une boucle courte venue d’un vieux disque oublié devient l’ossature du titre."],
+  ["La Mise au Banni", "Une censure ou interdiction déclenche scandale, désir et circulation clandestine."],
+  ["L’Objet Unique", "Un instrument cassé, rare ou trouvé produit un son impossible à refaire."],
+  ["La Lettre de Rupture", "Un message privé devient chanson presque sans transformation."],
+  ["Le Naufrage Évité", "Une bande sauvée, perdue puis retrouvée, ou un pressage arraché à l’oubli."],
+  ["L’Éclair de Génie Solitaire", "Une prise unique enregistrée seul éclipse la version prévue."],
+  ["Le Voyage Initiatique", "L’exil, la fuite ou le dépaysement donne au morceau son axe."],
+  ["Le Témoin Oculaire", "L’artiste observe une émeute, une guerre ou une révolution et en fait récit."],
+  ["Le Message Codé", "Une chanson apparemment intime cache une attaque politique ou un double sens."],
+  ["Le Choc des Générations", "Le titre marque la frontière entre anciens et nouveaux codes."],
+  ["Le Scanner Social", "Le morceau décrit une classe, un groupe, ses vêtements, ses habitudes, ses galères."],
+  ["La Rupture Technologique", "Un outil nouveau rend possible un son impossible peu avant."],
+  ["L’Inspiratrice Fantôme", "Identifier la personne réelle derrière un prénom, une adresse ou une figure."],
+  ["Le Climat Politique", "Une loi, une taxe ou une tension historique donne sa charge au morceau."],
+  ["La Géographie Urbaine", "Une ville, un quartier, un club ou une rue produit le son."],
+  ["Le Slang et l’Argot", "Un mot de rue, une expression ou un parler local change la réception du titre."],
+  ["La Fin d’un Monde", "Le morceau sort juste avant une rupture historique ou culturelle."],
+];
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -748,6 +801,15 @@ Architecture recommandée pour chaque chronique :
 Pas comme une note de programme.
 Pas comme une critique de presse.
 
+Structures narratives Sillage :
+Choisis une structure différente pour chaque titre.
+Le champ "narrativeAngle" doit contenir exactement le nom choisi.
+N’utilise une structure que si les faits documentés permettent vraiment de la tenir.
+Si la structure exige une anecdote précise et que tu n’as pas de source fiable, choisis une autre structure plus factuelle.
+Ne force jamais une crise personnelle, une dette, une censure, un sample ou un accident de studio.
+Banque de structures :
+${formatNarrativeStructures()}
+
 Chaque chronique doit inclure au moins 2 catégories différentes parmi :
 - contexte de sortie : date, album, moment de carrière ;
 - situation de l’artiste : pression, controverse, percée, déclin, réinvention ;
@@ -811,7 +873,8 @@ Schéma :
       "artist": "string",
       "title": "string",
       "reason": "pourquoi ce titre appartient à l’émission",
-      "chronicle": "chronique radio française naturelle, 36 à 48 mots, directe et rythmée"
+      "chronicle": "chronique radio française naturelle, 36 à 48 mots, directe et rythmée",
+      "narrativeAngle": "nom exact d’une structure narrative Sillage"
     }
   ]
 }
@@ -822,9 +885,17 @@ Pour chaque chronique, vérifie :
 - contient-elle des paroles ou du contexte, pas seulement de la production ?
 - évite-t-elle de répéter une autre chronique ?
 - ressemble-t-elle à une vraie histoire, pas à une description ?
+- la structure narrative choisie est-elle justifiée par un fait réel, et non plaquée ?
+- les 8 structures narratives sont-elles différentes ?
 
 Si une chronique échoue, réécris-la avant de retourner le JSON.
 `.trim();
+}
+
+function formatNarrativeStructures() {
+  return NARRATIVE_STRUCTURES.map(
+    ([name, description], index) => `${index + 1}. ${name} : ${description}`,
+  ).join("\n");
 }
 
 function parseEpisode(content) {
@@ -915,6 +986,9 @@ function normalizeEpisode(episode) {
           title: cleanText(track.title || ""),
           reason: cleanText(track.reason || ""),
           chronicle: cleanText(track.chronicle || track.chronique || ""),
+          narrativeAngle: normalizeNarrativeAngle(
+            track.narrativeAngle || track.angle_utilise || track.angleUtilise || "",
+          ),
         }))
       : episode.tracks,
   };
@@ -933,6 +1007,7 @@ function isValidEpisode(episode) {
           typeof track.artist === "string" &&
           typeof track.title === "string" &&
           typeof track.chronicle === "string" &&
+          typeof track.narrativeAngle === "string" &&
           typeof track.role === "string" &&
           typeof track.reason === "string" &&
           cleanText(episode.title) &&
@@ -942,6 +1017,7 @@ function isValidEpisode(episode) {
           cleanText(track.artist) &&
           cleanText(track.title) &&
           cleanText(track.chronicle) &&
+          isKnownNarrativeAngle(track.narrativeAngle) &&
           cleanText(track.reason),
       ),
   );
@@ -949,6 +1025,18 @@ function isValidEpisode(episode) {
 
 function normalizePlaylistRole(role, index) {
   return PLAYLIST_ROLES.includes(role) ? role : PLAYLIST_ROLES[index] || "opener";
+}
+
+function normalizeNarrativeAngle(value) {
+  const wanted = comparableText(value);
+  const match = NARRATIVE_STRUCTURES.find(([name]) => comparableText(name) === wanted);
+
+  return match ? match[0] : cleanText(value);
+}
+
+function isKnownNarrativeAngle(value) {
+  const wanted = comparableText(value);
+  return NARRATIVE_STRUCTURES.some(([name]) => comparableText(name) === wanted);
 }
 
 function isSeedOpeningTrack(episode, seed) {
@@ -1358,6 +1446,7 @@ function buildCuratedEpisode(episode) {
     tracks: episode.tracks.slice(0, 8).map((track, index) => ({
       ...track,
       role: PLAYLIST_ROLES[index],
+      narrativeAngle: track.narrativeAngle || NARRATIVE_STRUCTURES[index]?.[0] || "L’Angle Mort",
     })),
   };
 }

@@ -1,20 +1,20 @@
 :root {
   color-scheme: dark;
-  --background: #11130f;
-  --surface: #1b1d18;
-  --surface-soft: #252820;
-  --surface-lift: #f1eadc;
-  --text: #f3efe7;
-  --text-dark: #12130f;
-  --muted: #bab2a5;
-  --faint: #817a70;
-  --line: rgba(243, 239, 231, 0.14);
-  --accent: #ff6b4a;
-  --accent-soft: rgba(255, 107, 74, 0.14);
-  --signal: #9bd7bd;
-  --signal-soft: rgba(155, 215, 189, 0.16);
-  --danger: #ff8b78;
-  --shadow: rgba(0, 0, 0, 0.34);
+  --background: #000000;
+  --surface: #080808;
+  --surface-soft: #111111;
+  --surface-lift: #ffffff;
+  --text: #ffffff;
+  --text-dark: #000000;
+  --muted: #a7a7a7;
+  --faint: #5f5f5f;
+  --line: rgba(255, 255, 255, 0.16);
+  --accent: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.1);
+  --signal: #ffffff;
+  --signal-soft: rgba(255, 255, 255, 0.12);
+  --danger: #ffffff;
+  --shadow: rgba(0, 0, 0, 0.72);
 }
 
 * {
@@ -30,10 +30,7 @@ body {
   margin: 0;
   font-family:
     "Avenir Next", Avenir, "Helvetica Neue", Helvetica, Arial, sans-serif;
-  background:
-    linear-gradient(180deg, rgba(155, 215, 189, 0.08), transparent 280px),
-    radial-gradient(circle at 12% 12%, rgba(255, 107, 74, 0.14), transparent 320px),
-    var(--background);
+  background: var(--background);
   color: var(--text);
 }
 
@@ -102,7 +99,7 @@ button:disabled {
 .station-line,
 .page-tagline {
   margin: 0;
-  color: var(--signal);
+  color: var(--muted);
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0;
@@ -121,7 +118,8 @@ h1 {
   font-family:
     "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman",
     serif;
-  font-size: 96px;
+  color: #ffffff;
+  font-size: 104px;
   font-weight: 700;
   line-height: 0.92;
   letter-spacing: 0;
@@ -134,7 +132,7 @@ h1 {
 
 .brand-logo {
   margin: 0;
-  color: var(--text);
+  color: #ffffff;
   font-family:
     "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman",
     serif;
@@ -158,7 +156,7 @@ h1 {
   right: 0;
   bottom: 0;
   left: 0;
-  color: rgba(243, 239, 231, 0.36);
+  color: rgba(255, 255, 255, 0.2);
   text-align: center;
 }
 
@@ -170,7 +168,7 @@ h1 {
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(27, 29, 24, 0.86);
+  background: #000000;
   box-shadow: 0 28px 88px var(--shadow);
 }
 
@@ -181,14 +179,14 @@ h1 {
   border-radius: 6px;
   outline: 0;
   padding: 0 18px;
-  background: #f7f1e6;
+  background: #ffffff;
   color: var(--text-dark);
   font-size: 18px;
   font-weight: 600;
 }
 
 .search input::placeholder {
-  color: #756d64;
+  color: #6f6f6f;
 }
 
 .search button,
@@ -213,13 +211,13 @@ h1 {
 }
 
 .secondary-button {
-  border-color: rgba(243, 239, 231, 0.2);
-  background: rgba(243, 239, 231, 0.06);
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .danger-button {
-  border-color: rgba(255, 139, 120, 0.34);
-  background: rgba(255, 139, 120, 0.08);
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--danger);
 }
 
@@ -233,10 +231,10 @@ h1 {
 
 .suggestions button {
   min-height: 34px;
-  border: 1px solid rgba(243, 239, 231, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
   padding: 0 13px;
-  background: rgba(243, 239, 231, 0.06);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
@@ -247,7 +245,7 @@ h1 {
 .suggestions button:focus-visible,
 .secondary-button:hover,
 .secondary-button:focus-visible {
-  border-color: rgba(155, 215, 189, 0.48);
+  border-color: rgba(255, 255, 255, 0.72);
   color: var(--text);
   outline: 0;
 }
@@ -273,9 +271,9 @@ h1 {
   gap: 16px;
   align-items: center;
   padding: 12px;
-  border: 1px solid rgba(243, 239, 231, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
-  background: rgba(27, 29, 24, 0.82);
+  background: rgba(255, 255, 255, 0.035);
   color: var(--text);
   text-align: left;
   transition:
@@ -287,8 +285,8 @@ h1 {
 .result-card:hover,
 .result-card:focus-visible {
   transform: translateY(-1px);
-  border-color: rgba(255, 107, 74, 0.7);
-  background: rgba(37, 40, 32, 0.94);
+  border-color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.08);
   outline: 0;
 }
 
@@ -323,7 +321,7 @@ h1 {
 
 .result-cta {
   white-space: nowrap;
-  color: var(--signal);
+  color: #ffffff;
   font-weight: 900;
 }
 
@@ -353,7 +351,7 @@ h1 {
 .meter span {
   width: 7px;
   border-radius: 999px;
-  background: var(--signal);
+  background: #ffffff;
   animation: meter 850ms ease-in-out infinite;
 }
 
@@ -428,7 +426,9 @@ h1 {
   border-radius: 8px;
   object-fit: cover;
   background: var(--surface-soft);
-  box-shadow: 0 28px 98px var(--shadow);
+  box-shadow:
+    0 28px 98px var(--shadow),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .meter {
@@ -440,9 +440,9 @@ h1 {
   align-items: end;
   gap: 5px;
   padding: 9px;
-  border: 1px solid rgba(243, 239, 231, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 7px;
-  background: rgba(17, 19, 15, 0.86);
+  background: rgba(0, 0, 0, 0.88);
 }
 
 .meter span {
@@ -471,19 +471,19 @@ h1 {
 }
 
 .role-pill {
-  border: 1px solid rgba(243, 239, 231, 0.16);
-  background: rgba(243, 239, 231, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text);
 }
 
 .progress {
-  background: var(--signal);
+  background: #ffffff;
   color: var(--text-dark);
 }
 
 .state {
-  border: 1px solid rgba(255, 107, 74, 0.28);
-  color: var(--accent);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  color: #ffffff;
   background: var(--accent-soft);
 }
 
@@ -513,8 +513,8 @@ h1 {
   min-height: 36px;
   align-items: center;
   margin-top: 18px;
-  border-bottom: 2px solid rgba(155, 215, 189, 0.42);
-  color: var(--signal);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.42);
+  color: #ffffff;
   font-size: 14px;
   font-weight: 850;
   text-decoration: none;
@@ -526,7 +526,7 @@ h1 {
 
 .deezer-link:hover,
 .deezer-link:focus-visible {
-  border-color: var(--signal);
+  border-color: #ffffff;
   color: var(--text);
   outline: 0;
 }
@@ -548,13 +548,13 @@ h1 {
   min-width: 0;
   min-height: 92px;
   padding: 10px;
-  border: 1px solid rgba(243, 239, 231, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
-  background: rgba(27, 29, 24, 0.76);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .queue li.is-active {
-  border-color: rgba(155, 215, 189, 0.58);
+  border-color: rgba(255, 255, 255, 0.74);
   background: var(--signal-soft);
 }
 
@@ -564,7 +564,7 @@ h1 {
   width: 30px;
   height: 30px;
   border-radius: 999px;
-  background: rgba(243, 239, 231, 0.08);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--muted);
   font-size: 12px;
   font-style: normal;
@@ -579,7 +579,7 @@ h1 {
 .queue-role {
   display: block;
   margin-bottom: 5px;
-  color: var(--signal);
+  color: #ffffff;
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0;
