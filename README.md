@@ -57,21 +57,22 @@ npm run check
 npm test
 ```
 
-## Mode MVP DeepSeek
+## Mode MVP Gemini 3
 
-Sillage FM est prêt pour un MVP Railway avec DeepSeek via son API compatible OpenAI.
-La clé DeepSeek reste côté serveur, dans `.env` en local ou dans les variables d’environnement Railway.
+Sillage FM est prêt pour un MVP Railway avec Gemini 3 Flash Preview.
+La clé Gemini reste côté serveur, dans `.env` en local ou dans les variables d’environnement Railway.
 Elle n’est jamais exposée dans `app.js`.
 
-1. Créez ou ouvrez un compte DeepSeek.
-2. Créez une clé API.
+1. Ouvrez Google AI Studio.
+2. Créez une clé API Gemini.
 3. Copiez `.env.example` vers `.env`.
 4. Renseignez au minimum :
 
 ```env
-AI_PROVIDER=deepseek
-DEEPSEEK_API_KEY=sk-...
-DEEPSEEK_MODEL=deepseek-v4-pro
+AI_PROVIDER=gemini
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-3-flash-preview
+GEMINI_THINKING_LEVEL=low
 RADIO_CHARLIE_AI_MAX_TOKENS=4500
 RADIO_CHARLIE_FREE_MODE=false
 RADIO_CHARLIE_STRICT_AI=true
@@ -93,9 +94,9 @@ Le statut doit afficher :
 
 ```json
 {
-  "aiProvider": "deepseek",
-  "deepseekConfigured": true,
-  "deepseekThinking": "disabled"
+  "aiProvider": "gemini",
+  "geminiConfigured": true,
+  "geminiModel": "gemini-3-flash-preview"
 }
 ```
 
@@ -108,6 +109,10 @@ Pour tester le vrai MVP IA, utilisez `RADIO_CHARLIE_STRICT_AI=true` : si le four
 2. Railway détecte `package.json` et lance automatiquement `npm start`.
 3. Ajoutez les variables d’environnement dans Railway :
    - `AI_PROVIDER`
+   - `GEMINI_API_KEY`
+   - `GEMINI_MODEL`
+   - `GEMINI_THINKING_LEVEL`
+   - `GEMINI_THINKING_BUDGET`
    - `DEEPSEEK_API_KEY`
    - `DEEPSEEK_MODEL`
    - `DEEPSEEK_THINKING`
@@ -149,7 +154,7 @@ https://VOTRE-DOMAINE-RAILWAY/api/status
 ## Variables d’environnement
 
 ```env
-AI_PROVIDER=deepseek
+AI_PROVIDER=gemini
 DEEPSEEK_API_KEY=
 DEEPSEEK_MODEL=deepseek-v4-pro
 DEEPSEEK_THINKING=disabled
@@ -157,6 +162,10 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5-mini
 ANTHROPIC_API_KEY=
 ANTHROPIC_MODEL=claude-sonnet-4-20250514
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3-flash-preview
+GEMINI_THINKING_LEVEL=low
+GEMINI_THINKING_BUDGET=
 RADIO_CHARLIE_AI_MAX_TOKENS=4500
 TAVILY_API_KEY=
 TAVILY_ENABLED=true
@@ -190,6 +199,11 @@ RADIO_CHARLIE_SPEAK_RATE_WINDOW_MS=600000
 
 `RADIO_CHARLIE_FREE_MODE=true` désactive les appels IA payants et utilise une émission locale.
 `RADIO_CHARLIE_STRICT_AI=true` force une erreur visible si l’IA échoue au lieu de revenir au mode local.
+`AI_PROVIDER=gemini` utilise Gemini.
+`GEMINI_MODEL=gemini-3-flash-preview` utilise Gemini 3 Flash Preview.
+`GEMINI_THINKING_LEVEL=low` limite la latence et le coût sur Gemini 3.
+`GEMINI_THINKING_LEVEL=high` privilégie la qualité si vous acceptez plus de latence.
+`GEMINI_THINKING_BUDGET` est surtout utile pour Gemini 2.5 ; laissez vide avec Gemini 3.
 `AI_PROVIDER=deepseek` utilise DeepSeek.
 `AI_PROVIDER=openai` utilise OpenAI.
 `AI_PROVIDER=claude` utilise Claude si vous gardez une clé Anthropic.

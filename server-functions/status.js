@@ -20,8 +20,9 @@ exports.handler = async (event) => {
   const hasDeepSeek = Boolean(process.env.DEEPSEEK_API_KEY);
   const hasOpenAi = Boolean(process.env.OPENAI_API_KEY);
   const hasClaude = Boolean(process.env.ANTHROPIC_API_KEY);
+  const hasGemini = Boolean(process.env.GEMINI_API_KEY);
   const hasTavily = Boolean(process.env.TAVILY_API_KEY);
-  const aiProvider = getAiProvider({ hasDeepSeek, hasOpenAi, hasClaude });
+  const aiProvider = getAiProvider({ hasDeepSeek, hasOpenAi, hasClaude, hasGemini });
   const deepseekModel = process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
   const voiceProvider = getVoiceProvider();
 
@@ -34,6 +35,10 @@ exports.handler = async (event) => {
     openaiModel: process.env.OPENAI_MODEL || "gpt-5-mini",
     claudeConfigured: hasClaude,
     claudeModel: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
+    geminiConfigured: hasGemini,
+    geminiModel: process.env.GEMINI_MODEL || "gemini-3-flash-preview",
+    geminiThinkingLevel: getGeminiThinkingLevel(),
+    geminiThinkingBudget: getGeminiThinkingBudget(),
     aiMaxTokens: Number(process.env.RADIO_CHARLIE_AI_MAX_TOKENS || 4500),
     voiceProvider,
     voiceModel: process.env.ELEVENLABS_MODEL || "eleven_flash_v2_5",
@@ -51,15 +56,23 @@ exports.handler = async (event) => {
   });
 };
 
-function getAiProvider({ hasDeepSeek, hasOpenAi, hasClaude }) {
+function getAiProvider({ hasDeepSeek, hasOpenAi, hasClaude, hasGemini }) {
   const configuredProvider = String(process.env.AI_PROVIDER || "").trim().toLowerCase();
 
   if (configuredProvider === "anthropic") {
     return "claude";
   }
 
-  if (["deepseek", "openai", "claude", "local"].includes(configuredProvider)) {
+  if (configuredProvider === "google") {
+    return "gemini";
+  }
+
+  if (["deepseek", "openai", "claude", "gemini", "local"].includes(configuredProvider)) {
     return configuredProvider;
+  }
+
+  if (hasGemini) {
+    return "gemini";
   }
 
   if (hasDeepSeek) {
@@ -119,6 +132,21 @@ function getTavilySearchDepth() {
   }
 
   return "basic";
+}
+
+function getGeminiThinkingLevel() {
+  const configured = String(process.env.GEMINI_THINKING_LEVEL || "").trim().toLowerCase();
+
+  if (["minimal", "low", "medium", "high"].includes(configured)) {
+    return configured;
+  }
+
+  return "low";
+}
+
+function getGeminiThinkingBudget() {
+  const value = String(process.env.GEMINI_THINKING_BUDGET || "").trim();
+  return value || "";
 }
 
 function json(statusCode, body) {

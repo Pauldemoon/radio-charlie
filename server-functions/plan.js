@@ -4,8 +4,12 @@ const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
+const GEMINI_API_URL = process.env.GEMINI_API_URL || "https://generativelanguage.googleapis.com/v1beta";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 const TAVILY_API_URL = process.env.TAVILY_API_URL || "https://api.tavily.com/search";
 const AI_MAX_TOKENS = numberEnv("RADIO_CHARLIE_AI_MAX_TOKENS", 4500);
+const GEMINI_THINKING_LEVEL = cleanText(process.env.GEMINI_THINKING_LEVEL) || "low";
+const GEMINI_THINKING_BUDGET = cleanText(process.env.GEMINI_THINKING_BUDGET);
 const TAVILY_TIMEOUT_MS = numberEnv("TAVILY_TIMEOUT_MS", 5500);
 const TAVILY_MAX_RESULTS = clampNumber(numberEnv("TAVILY_MAX_RESULTS", 5), 1, 8);
 const TAVILY_CACHE_TTL_MS = numberEnv("TAVILY_CACHE_TTL_MS", 60 * 60 * 1000);
@@ -189,6 +193,10 @@ async function createAiEpisode(seed) {
     return createClaudeEpisode(seed, webContext);
   }
 
+  if (provider === "gemini") {
+    return createGeminiEpisode(seed, webContext);
+  }
+
   return createFreeEpisode(seed);
 }
 
@@ -359,6 +367,10 @@ function getAiProvider() {
     return "claude";
   }
 
+  if (process.env.GEMINI_API_KEY) {
+    return "gemini";
+  }
+
   return "local";
 }
 
@@ -369,7 +381,11 @@ function normalizeAiProvider(value) {
     return "";
   }
 
-  if (["deepseek", "openai", "claude", "anthropic", "local"].includes(provider)) {
+  if (["deepseek", "openai", "claude", "anthropic", "gemini", "google", "local"].includes(provider)) {
+    if (provider === "google") {
+      return "gemini";
+    }
+
     return provider === "anthropic" ? "claude" : provider;
   }
 
@@ -436,6 +452,127 @@ async function createOpenAiEpisode(seed, webContext) {
       },
     },
   });
+}
+
+async function createGeminiEpisode(seed, webContext) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("Configuration Gemini manquante.");
+  }
+
+  const apiUrl = `${GEMINI_API_URL}/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`;
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": process.env.GEMINI_API_KEY,
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: SYSTEM_PROMPT }],
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: buildPrompt(seed, webContext) }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.72,
+        maxOutputTokens: AI_MAX_TOKENS,
+        responseMimeType: "application/json",
+        responseJsonSchema: toGeminiSchema(EPISODE_SCHEMA),
+        ...getGeminiThinkingConfig(),
+      },
+    }),
+  });
+
+  const responseText = await response.text().catch(() => "");
+  const payload = parseJsonSafely(responseText);
+
+  if (!response.ok) {
+    const apiMessage =
+      payload?.error?.message ||
+      payload?.message ||
+      responseText.slice(0, 600) ||
+      "Réponse vide.";
+    throw new Error(`Gemini ${response.status}: ${apiMessage}`);
+  }
+
+  const content = getGeminiContent(payload, responseText);
+  let episode;
+
+  try {
+    episode = normalizeEpisode(parseEpisode(content));
+  } catch (error) {
+    throw new Error(`Gemini JSON invalide: ${error.message}`);
+  }
+
+  if (!isValidEpisode(episode) || !isSeedOpeningTrack(episode, seed)) {
+    throw new Error("Format d'émission Gemini invalide.");
+  }
+
+  return episode;
+}
+
+function getGeminiContent(payload, responseText) {
+  const parts = payload?.candidates?.[0]?.content?.parts || [];
+  const text = parts
+    .map((part) => part.text || "")
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+
+  if (text) {
+    return text;
+  }
+
+  throw new Error(`Gemini réponse finale vide: ${String(responseText || "").slice(0, 280)}`);
+}
+
+function getGeminiThinkingConfig() {
+  if (GEMINI_THINKING_BUDGET) {
+    return {
+      thinkingConfig: {
+        thinkingBudget: Number(GEMINI_THINKING_BUDGET),
+      },
+    };
+  }
+
+  if (String(GEMINI_MODEL).startsWith("gemini-3")) {
+    return {
+      thinkingConfig: {
+        thinkingLevel: GEMINI_THINKING_LEVEL,
+      },
+    };
+  }
+
+  return {
+    thinkingConfig: {
+      thinkingBudget: 1024,
+    },
+  };
+}
+
+function toGeminiSchema(schema) {
+  if (Array.isArray(schema)) {
+    return schema.map(toGeminiSchema);
+  }
+
+  if (!schema || typeof schema !== "object") {
+    return schema;
+  }
+
+  const converted = {};
+
+  Object.entries(schema).forEach(([key, value]) => {
+    if (key === "additionalProperties") {
+      return;
+    }
+
+    converted[key] = toGeminiSchema(value);
+  });
+
+  return converted;
 }
 
 async function createOpenAiCompatibleEpisode({
@@ -1126,7 +1263,7 @@ function getAiUserMessage(error) {
     lowerMessage.includes("reasoning_content") ||
     lowerMessage.includes("reasoning_chars")
   ) {
-    return "DeepSeek a produit du raisonnement mais pas la réponse finale. Mets DEEPSEEK_THINKING=disabled dans Railway, puis redéploie.";
+    return "L’IA a produit du raisonnement mais pas la réponse finale. Réduis le budget de réflexion ou augmente RADIO_CHARLIE_AI_MAX_TOKENS.";
   }
 
   if (
@@ -1151,7 +1288,7 @@ function getAiUserMessage(error) {
     lowerMessage.includes("response_format") ||
     lowerMessage.includes("thinking")
   ) {
-    return "DeepSeek refuse la requête actuelle. On doit ajuster le modèle ou les paramètres envoyés.";
+    return "Le fournisseur IA refuse la requête actuelle. On doit ajuster le modèle ou les paramètres envoyés.";
   }
 
   if (
@@ -1163,7 +1300,7 @@ function getAiUserMessage(error) {
   }
 
   if (lowerMessage.includes("insufficient_system_resource")) {
-    return "DeepSeek est temporairement saturé. Réessaie dans quelques instants.";
+    return "Le fournisseur IA est temporairement saturé. Réessaie dans quelques instants.";
   }
 
   if (
