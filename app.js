@@ -2,6 +2,13 @@ const DEEZER_SEARCH_URL = "https://api.deezer.com/search";
 const SPEECH_TIMEOUT_MS = 5500;
 const BROWSER_SPEECH_RATE = 1.12;
 const MAX_SPOKEN_WORDS = 52;
+const BED_INTRO_MS = 1500;
+const BED_PUNCH_MS = 2400;
+const BED_FADE_MS = 420;
+const BED_CUT_MS = 260;
+const BED_FULL_VOLUME = 0.22;
+const BED_DUCK_VOLUME = 0.045;
+const BED_PUNCH_VOLUME = 0.16;
 const FALLBACK_COVER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Crect width='600' height='600' fill='%23141312'/%3E%3Ccircle cx='300' cy='300' r='190' fill='%23d8b36a' fill-opacity='.16'/%3E%3Ccircle cx='300' cy='300' r='78' fill='%23d8b36a' fill-opacity='.42'/%3E%3C/svg%3E";
 
@@ -62,6 +69,7 @@ const state = {
   playableTracks: [],
   speechCache: new Map(),
   browserVoiceOnly: false,
+  radioBed: null,
 };
 
 els.searchInput.focus();
@@ -283,10 +291,10 @@ async function playEpisode(runId, tracks) {
     setPlaybackState("Ouverture antenne");
     prefetchSpeech(firstChronicle);
 
-    await speak(intro);
+    await speakWithRadioBed(intro, runId);
     if (!isCurrentRun(runId)) return;
 
-    await wait(180);
+    await wait(120);
     if (!isCurrentRun(runId)) return;
   } else {
     prefetchSpeech(firstChronicle);
@@ -301,14 +309,14 @@ async function playEpisode(runId, tracks) {
     updateCurrentTrack(track, index, tracks.length);
     setPlaybackState("Voix antenne");
 
-    await speak(chronicle);
+    await speakWithRadioBed(chronicle, runId);
     if (!isCurrentRun(runId)) return;
 
     if (nextTrack) {
       prefetchSpeech(getTrackChronicle(nextTrack));
     }
 
-    await wait(180);
+    await wait(100);
     if (!isCurrentRun(runId)) return;
 
     setPlaybackState("En cours d’écoute");
@@ -322,6 +330,30 @@ async function playEpisode(runId, tracks) {
     clearPlayback();
     showEnd();
   }
+}
+
+async function speakWithRadioBed(text, runId) {
+  if (!prepareOnAirText(text)) {
+    return;
+  }
+
+  startRadioBed(BED_FULL_VOLUME);
+  await wait(BED_INTRO_MS);
+  if (!isCurrentRun(runId)) return;
+
+  duckRadioBed();
+  await wait(BED_FADE_MS);
+  if (!isCurrentRun(runId)) return;
+
+  await speak(text);
+  if (!isCurrentRun(runId)) return;
+
+  punchRadioBed();
+  await wait(BED_PUNCH_MS);
+  if (!isCurrentRun(runId)) return;
+
+  cutRadioBed(BED_CUT_MS);
+  await wait(BED_CUT_MS);
 }
 
 async function speak(text) {
@@ -546,6 +578,153 @@ function getFrenchVoice() {
   );
 }
 
+function startRadioBed(volume = BED_FULL_VOLUME) {
+  const bed = getRadioBed();
+
+  if (!bed) {
+    return;
+  }
+
+  bed.resume();
+  bed.fadeTo(volume, BED_FADE_MS);
+}
+
+function duckRadioBed() {
+  const bed = getRadioBed();
+
+  if (bed) {
+    bed.fadeTo(BED_DUCK_VOLUME, BED_FADE_MS);
+  }
+}
+
+function punchRadioBed() {
+  const bed = getRadioBed();
+
+  if (bed) {
+    bed.fadeTo(BED_PUNCH_VOLUME, BED_FADE_MS);
+  }
+}
+
+function cutRadioBed(duration = BED_CUT_MS) {
+  const bed = state.radioBed;
+
+  if (bed) {
+    bed.fadeTo(0, duration);
+  }
+}
+
+function pauseRadioBed() {
+  const bed = state.radioBed;
+
+  if (bed) {
+    bed.pause();
+  }
+}
+
+function resumeRadioBed() {
+  const bed = state.radioBed;
+
+  if (bed) {
+    bed.resumeFromPause();
+  }
+}
+
+function stopRadioBed() {
+  const bed = state.radioBed;
+
+  if (bed) {
+    bed.stop();
+    state.radioBed = null;
+  }
+}
+
+function getRadioBed() {
+  if (state.radioBed) {
+    return state.radioBed;
+  }
+
+  state.radioBed = createRadioBed();
+  return state.radioBed;
+}
+
+function createRadioBed() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioContext) {
+    return null;
+  }
+
+  const context = new AudioContext();
+  const master = context.createGain();
+  const low = context.createOscillator();
+  const lowGain = context.createGain();
+  const mid = context.createOscillator();
+  const midGain = context.createGain();
+  const pulse = context.createOscillator();
+  const pulseFilter = context.createBiquadFilter();
+  const pulseGain = context.createGain();
+  let targetVolume = 0;
+  let pausedVolume = 0;
+
+  master.gain.value = 0;
+  master.connect(context.destination);
+
+  low.type = "sine";
+  low.frequency.value = 55;
+  lowGain.gain.value = 0.34;
+  low.connect(lowGain).connect(master);
+
+  mid.type = "triangle";
+  mid.frequency.value = 146.8;
+  mid.detune.value = -9;
+  midGain.gain.value = 0.08;
+  mid.connect(midGain).connect(master);
+
+  pulse.type = "square";
+  pulse.frequency.value = 2;
+  pulseFilter.type = "lowpass";
+  pulseFilter.frequency.value = 420;
+  pulseGain.gain.value = 0.018;
+  pulse.connect(pulseFilter).connect(pulseGain).connect(master);
+
+  [low, mid, pulse].forEach((node) => node.start());
+
+  return {
+    fadeTo(volume, duration = BED_FADE_MS) {
+      targetVolume = volume;
+      const now = context.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.setValueAtTime(master.gain.value, now);
+      master.gain.linearRampToValueAtTime(volume, now + duration / 1000);
+    },
+    resume() {
+      if (context.state === "suspended") {
+        context.resume().catch(() => {});
+      }
+    },
+    pause() {
+      pausedVolume = targetVolume;
+      this.fadeTo(0, 160);
+    },
+    resumeFromPause() {
+      if (pausedVolume > 0) {
+        this.resume();
+        this.fadeTo(pausedVolume, BED_FADE_MS);
+      }
+    },
+    stop() {
+      [low, mid, pulse].forEach((node) => {
+        try {
+          node.stop();
+        } catch (error) {
+          // Already stopped.
+        }
+      });
+      context.close().catch(() => {});
+    },
+  };
+}
+
 function playPreview(url) {
   return playAudio(url);
 }
@@ -597,6 +776,7 @@ function togglePause() {
   }
 
   if (state.isPaused) {
+    resumeRadioBed();
     state.playback.resume();
     resetPauseControl(false);
     els.playbackState.textContent = state.playbackLabel;
@@ -604,6 +784,7 @@ function togglePause() {
   }
 
   state.playback.pause();
+  pauseRadioBed();
   resetPauseControl(true);
   els.playbackState.textContent = "En pause";
 }
@@ -629,6 +810,7 @@ function clearPlayback() {
 function resetRun() {
   state.runId += 1;
   interruptCurrentStep();
+  stopRadioBed();
   clearSpeechCache();
   state.browserVoiceOnly = false;
   return state.runId;

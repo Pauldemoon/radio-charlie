@@ -12,6 +12,7 @@ L’utilisateur cherche un morceau, clique sur un résultat Deezer, puis l’app
 - des liens Deezer pour retrouver le morceau en cours ;
 - une voix off ElevenLabs pour lire les chroniques, sans afficher le texte éditorial dans l’interface ;
 - un fallback `speechSynthesis` si ElevenLabs échoue.
+- un tapis audio génératif côté navigateur, avec ducking sous la voix et cut avant l’extrait Deezer.
 
 Signature : **Après le morceau, le sillage.**
 
