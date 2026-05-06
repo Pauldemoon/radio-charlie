@@ -1,5 +1,5 @@
 const DEEZER_SEARCH_URL = "https://api.deezer.com/search";
-const SPEECH_TIMEOUT_MS = 5500;
+const SPEECH_TIMEOUT_MS = 20000;
 const BROWSER_SPEECH_RATE = 1.12;
 const MAX_SPOKEN_WORDS = 52;
 const FALLBACK_COVER =
@@ -394,17 +394,17 @@ async function fetchSpeechAudioUrl(text, signal) {
     });
 
     if (!response.ok) {
-      if ([500, 503].includes(response.status)) {
+      if (response.status === 500) {
         state.browserVoiceOnly = true;
       }
 
-      throw new Error("Voix ElevenLabs indisponible.");
+      throw new Error("Voix Sillage indisponible.");
     }
 
     const blob = await response.blob();
 
     if (!blob.size || !blob.type.includes("audio")) {
-      throw new Error("Réponse audio ElevenLabs invalide.");
+      throw new Error("Réponse audio Sillage invalide.");
     }
 
     return URL.createObjectURL(blob);
