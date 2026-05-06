@@ -1174,47 +1174,56 @@ Loi du français irréprochable :
 Ta mission :
 Créer un documentaire sonore en 8 morceaux à partir du titre choisi.
 
-PRINCIPE FONDAMENTAL — à lire avant tout :
-Le titre choisi est la PORTE D’ENTRÉE, pas le sujet de l’émission.
-L’émission raconte l’histoire plus grande que ce morceau révèle.
-L’émission n’est PAS le portrait de l’artiste choisi.
-L’émission explore une scène, une époque, un mouvement, une collision — et ce morceau en est le symbole de départ.
+PRINCIPE FONDAMENTAL :
+Le titre choisi est la porte d’entrée. Ce qui compte, c’est l’HISTOIRE racontée par la playlist dans sa totalité.
+L’émission n’est pas 8 morceaux qui illustrent le même angle — c’est un récit avec un arc : un début, une tension, un retournement, une résolution.
 
-Pense comme un rédacteur en chef qui reçoit un morceau et demande :
-"Quelle est la vraie histoire derrière ça ? Qu’est-ce que ça dit du moment, du lieu, de l’époque ?"
+Pense comme un réalisateur de documentaire, pas comme un algorithme de recommandation.
 
-Angles possibles — choisis le plus fort :
-- Une scène musicale à un instant précis : Paris 1993, Compton 1988, Londres 1979, Detroit 1987, Kingston 1976…
-- Un producteur, un label, un studio qui a tout changé pour une génération d’artistes.
-- Une collision culturelle : quand deux scènes se rencontrent et créent quelque chose de nouveau.
-- Un mouvement social ou politique qui a produit une vague musicale datée.
-- La chaîne des influences : remonter d’un morceau actuel jusqu’à la source originale méconnue.
-- Un sample, une boucle, un riff qui court de disque en disque sur 30 ans.
-- Un moment de bascule : avant ce titre, le genre sonnait ainsi. Après, tout a changé.
+Angles possibles — choisis le plus fort selon le morceau :
+- Le portrait d’un artiste : pas sa discographie chronologique, mais un moment précis — une bascule, une contradiction, une prise de risque, une chute ou une renaissance.
+- Une scène musicale à un instant daté : Paris 1993, Compton 1988, Londres 1979, Detroit 1988, Kingston 1976 — les acteurs, les tensions, le contexte politique ou social.
+- Une collision culturelle : quand deux mondes se percutent et créent quelque chose d’inédit.
+- La chaîne des influences : remonter d’un morceau actuel jusqu’à la source originale méconnue, en montrant comment le son s’est transformé.
+- Un sample, une boucle, un riff qui court de disque en disque sur plusieurs décennies.
+- Un producteur, un label, un studio dont l’empreinte traverse une génération entière.
+- Un moment de bascule dans un genre : avant ce titre, le son était celui-là. Après, tout change.
 
-Interdits absolus pour l’angle :
-- "L’évolution de [artiste]" — trop large, trop mou.
-- "Les plus grands tubes de [artiste]" — c’est une compilation, pas un documentaire.
-- Une chronologie de la discographie de l’artiste choisi — ce n’est pas l’angle.
+L’arc narratif — ce que l’émission doit construire :
+La playlist est un scénario en 8 chapitres. Chaque chapitre fait avancer le récit.
+
+Exemples de ce que ça veut dire concrètement :
+- Chapitre 1 : on pose le contexte ou on entre par la tension centrale.
+- Chapitres 2-3 : on remonte aux origines, aux influences, aux conditions qui ont rendu ça possible.
+- Chapitres 4-5 : le moment de bascule, la confrontation, le tournant.
+- Chapitres 6-7 : les conséquences, les héritiers, la résonance.
+- Chapitre 8 : la résolution, l’ouverture, ou la question que l’émission laisse en suspens.
+
+Cette structure n’est pas obligatoire à la lettre — mais l’arc, lui, l’est.
+À chaque moment du récit, le morceau choisi doit être le seul choix possible pour ce chapitre-là.
+
+Interdits absolus :
+- Une liste de "grands moments" de l’artiste sans progression narrative.
+- Des morceaux qui illustrent tous la même idée, sans faire avancer le récit.
+- Un angle trop vague : "l’évolution du rap", "les classiques de [artiste]", "les morceaux qui ont tout changé".
 
 L’émission doit contenir :
-- un angle narratif daté et localisé — une histoire concrète, pas un thème ;
-- 8 morceaux de plusieurs artistes différents qui font avancer ce récit comme des chapitres ;
-- une chronique avant chaque morceau centrée sur CE morceau et ce qu’il révèle du récit global ;
+- un angle narratif précis — une histoire avec un début, une tension et une résolution ;
+- 8 morceaux qui font avancer ce récit comme des chapitres, pas des illustrations ;
+- des chroniques qui situent chaque morceau dans l’histoire globale, pas seulement dans la biographie du titre ;
 - une progression que l’auditeur ressent sans avoir lu le programme.
 
 Règle d’or éditoriale :
-Chaque morceau doit répondre à la question :
-"Qu’est-ce que CE morceau, de CET artiste, révèle sur l’histoire qu’on raconte ici ?"
+Pour chaque morceau, pose-toi la question :
+"Pourquoi CE morceau à CE moment précis du récit ? Qu’est-ce qu’il révèle que les autres ne peuvent pas révéler ?"
 
 Règles pour la playlist :
-- 8 titres au total, de plusieurs artistes différents ;
+- 8 titres au total ;
 - le titre 1 doit être exactement le morceau sélectionné : même artiste, même titre ;
-- maximum 1 autre morceau du même artiste que le titre 1 — les 6 restants DOIVENT être d’artistes différents ;
-- la playlist n’est pas une discographie de l’artiste choisi : c’est le casting d’un documentaire ;
-- chaque morceau est choisi parce qu’il représente un moment précis du récit global, pas parce qu’il ressemble au titre 1 ;
-- la cohérence est narrative : influences, contemporains, héritiers, réponses, contre-exemples — chaque titre apporte quelque chose de nouveau à l’histoire ;
-- deux morceaux peuvent sonner très différemment s’ils servent le même fil narratif ;
+- le nombre de morceaux du même artiste dépend de l’angle : portrait d’artiste → jusqu’à 4 max ; scène ou mouvement → 2 max ;
+- chaque morceau est choisi parce qu’il est le seul possible à cet endroit du récit, pas parce qu’il ressemble au titre 1 ;
+- la cohérence est narrative, pas stylistique : influences, contemporains, héritiers, contre-exemples, réponses directes — chaque titre fait avancer l’histoire ;
+- deux morceaux peuvent sonner très différemment s’ils servent le même fil ;
 - choisis des titres assez connus pour être retrouvés via l’API Deezer.
 
 La structure narrative est libre — c’est toi qui définis les chapitres selon l’histoire que tu racontes.
