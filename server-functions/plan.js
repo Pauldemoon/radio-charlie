@@ -978,10 +978,23 @@ function getGeminiContent(payload, responseText) {
   const reason = payload?.candidates?.[0]?.finishReason || "absent";
   throw new Error(`Gemini réponse finale vide: finishReason=${reason}; response_preview=${String(responseText || "").slice(0, 280)}`);
 }
+function getClaudeThinkingConfig() {
+  const rawBudget = cleanText(process.env.ANTHROPIC_THINKING_BUDGET);
+  if (!rawBudget) return null;
+  const budget = Number(rawBudget);
+  if (!Number.isInteger(budget) || budget < 1024) return null;
+  return { type: "enabled", budget_tokens: budget };
+}
+
 async function createClaudeEpisode(seed, webContext) {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error("Configuration Claude manquante.");
   }
+
+  const thinking = getClaudeThinkingConfig();
+  const maxTokens = thinking
+    ? Math.max(AI_MAX_TOKENS + thinking.budget_tokens, 16000)
+    : AI_MAX_TOKENS;
 
   const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
@@ -992,8 +1005,9 @@ async function createClaudeEpisode(seed, webContext) {
     },
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
-      max_tokens: AI_MAX_TOKENS,
-      temperature: 0.72,
+      max_tokens: maxTokens,
+      temperature: thinking ? 1 : 0.72,
+      ...(thinking ? { thinking } : {}),
       system: SYSTEM_PROMPT,
       messages: [
         {
