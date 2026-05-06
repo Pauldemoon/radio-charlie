@@ -764,7 +764,7 @@ function isValidEpisode(value) {
       typeof value.angle === "string" &&
       typeof value.intro === "string" &&
       Array.isArray(value.tracks) &&
-      value.tracks.length >= 6 && value.tracks.length <= 8 &&
+      value.tracks.length >= 5 && value.tracks.length <= 6 &&
       value.tracks.every(
         (track) =>
           typeof track.artist === "string" &&

@@ -27,8 +27,8 @@ const EPISODE_SCHEMA = {
     intro: { type: "string" },
     tracks: {
       type: "array",
-      minItems: 6,
-      maxItems: 8,
+      minItems: 5,
+      maxItems: 6,
       items: {
         type: "object",
         additionalProperties: false,
@@ -53,8 +53,8 @@ const GEMINI_EPISODE_SCHEMA = {
     intro: { type: "STRING" },
     tracks: {
       type: "ARRAY",
-      minItems: 6,
-      maxItems: 8,
+      minItems: 5,
+      maxItems: 6,
       items: {
         type: "OBJECT",
         required: ["artist", "title", "reason", "chronicle"],
@@ -1172,86 +1172,23 @@ Loi du français irréprochable :
 - Si une chronique peut tenir en deux phrases, elle ne doit pas en faire trois.
 
 Ta mission :
-Créer un documentaire sonore en 8 morceaux à partir du titre choisi.
+Créer un documentaire sonore en 6 morceaux à partir du titre choisi.
 
-PRINCIPE FONDAMENTAL :
-Le titre choisi est la porte d’entrée. Ce qui compte, c’est l’HISTOIRE racontée par la playlist dans sa totalité.
-L’émission n’est pas 8 morceaux qui illustrent le même angle — c’est un récit avec un arc : un début, une tension, un retournement, une résolution.
+— ÉTAPE 1 : Choisir le story type de l’épisode —
 
-Pense comme un réalisateur de documentaire, pas comme un algorithme de recommandation.
+Parcours la liste ci-dessous. Choisir le story type qui correspond le mieux à la vraie histoire du titre choisi.
+Ce story type définit DE QUOI PARLE L’ÉMISSION. Il doit être vrai ou très plausible — ne force pas un angle inventé.
 
-Angles possibles — choisis le plus fort selon le morceau :
-- Le portrait d’un artiste : pas sa discographie chronologique, mais un moment précis — une bascule, une contradiction, une prise de risque, une chute ou une renaissance.
-- Une scène musicale à un instant daté : Paris 1993, Compton 1988, Londres 1979, Detroit 1988, Kingston 1976 — les acteurs, les tensions, le contexte politique ou social.
-- Une collision culturelle : quand deux mondes se percutent et créent quelque chose d’inédit.
-- La chaîne des influences : remonter d’un morceau actuel jusqu’à la source originale méconnue, en montrant comment le son s’est transformé.
-- Un sample, une boucle, un riff qui court de disque en disque sur plusieurs décennies.
-- Un producteur, un label, un studio dont l’empreinte traverse une génération entière.
-- Un moment de bascule dans un genre : avant ce titre, le son était celui-là. Après, tout change.
+Exemples concrets de mapping :
+"I Will Always Love You" (Whitney Houston) → Le Transfert (c’était la chanson de Dolly Parton).
+"Billie Jean" (Michael Jackson) → L’Obsession (Michael a refusé de couper la ligne de basse malgré tout le monde).
+"Heroes" (David Bowie) → Le Snapshot Géographique (enregistré à 500m du Mur de Berlin, 1977).
+"Strange Fruit" (Billie Holiday) → La Mise au Banni (interdit de radio par NBC dès 1939).
+"Ne me quitte pas" (Jacques Brel) → La Lettre de Rupture (écrit pour Zizou, sur un coin de table, après qu’elle l’ait quitté).
 
-L’arc narratif — ce que l’émission doit construire :
-La playlist est un scénario en 8 chapitres. Chaque chapitre fait avancer le récit.
+Le story type choisi devient le champ "angle" de l’émission.
 
-Exemples de ce que ça veut dire concrètement :
-- Chapitre 1 : on pose le contexte ou on entre par la tension centrale.
-- Chapitres 2-3 : on remonte aux origines, aux influences, aux conditions qui ont rendu ça possible.
-- Chapitres 4-5 : le moment de bascule, la confrontation, le tournant.
-- Chapitres 6-7 : les conséquences, les héritiers, la résonance.
-- Chapitre 8 : la résolution, l’ouverture, ou la question que l’émission laisse en suspens.
-
-Cette structure n’est pas obligatoire à la lettre — mais l’arc, lui, l’est.
-À chaque moment du récit, le morceau choisi doit être le seul choix possible pour ce chapitre-là.
-
-Interdits absolus :
-- Une liste de "grands moments" de l’artiste sans progression narrative.
-- Des morceaux qui illustrent tous la même idée, sans faire avancer le récit.
-- Un angle trop vague : "l’évolution du rap", "les classiques de [artiste]", "les morceaux qui ont tout changé".
-
-L’émission doit contenir :
-- un angle narratif précis — une histoire avec un début, une tension et une résolution ;
-- 8 morceaux qui font avancer ce récit comme des chapitres, pas des illustrations ;
-- des chroniques qui situent chaque morceau dans l’histoire globale, pas seulement dans la biographie du titre ;
-- une progression que l’auditeur ressent sans avoir lu le programme.
-
-Règle d’or éditoriale :
-Pour chaque morceau, pose-toi la question :
-"Pourquoi CE morceau à CE moment précis du récit ? Qu’est-ce qu’il révèle que les autres ne peuvent pas révéler ?"
-
-Règles pour la playlist :
-- 8 titres au total ;
-- le titre 1 doit être exactement le morceau sélectionné : même artiste, même titre ;
-- le nombre de morceaux du même artiste dépend de l’angle : portrait d’artiste → jusqu’à 4 max ; scène ou mouvement → 2 max ;
-- chaque morceau est choisi parce qu’il est le seul possible à cet endroit du récit, pas parce qu’il ressemble au titre 1 ;
-- la cohérence est narrative, pas stylistique : influences, contemporains, héritiers, contre-exemples, réponses directes — chaque titre fait avancer l’histoire ;
-- deux morceaux peuvent sonner très différemment s’ils servent le même fil ;
-- choisis des titres assez connus pour être retrouvés via l’API Deezer.
-
-La structure narrative est libre — c’est toi qui définis les chapitres selon l’histoire que tu racontes.
-Il n’y a pas de rôles imposés. Ce qui compte : chaque morceau doit faire avancer le récit.
-Le champ "reason" doit expliquer en une phrase pourquoi ce morceau appartient à cet endroit du récit.
-
-Règles pour les chroniques :
-Chaque chronique doit être écrite pour être dite à voix haute.
-Objectif : 80 à 120 mots par chronique, soit 30 à 45 secondes d’antenne.
-Trois à cinq phrases.
-La première phrase doit être courte, moins de 14 mots si possible.
-Le rythme doit être naturel, presque conversationnel, avec de l’élan.
-La première phrase doit accrocher vite, sans préambule.
-Alterner phrases courtes et phrases moyennes.
-Évite les phrases longues avec plusieurs subordonnées.
-Évite les deux-points, parenthèses, incises lourdes et mots abstraits en série.
-Évite aussi le ton endormi, contemplatif ou trop solennel.
-
-Architecture recommandée pour chaque chronique :
-1. une accroche qui donne immédiatement la tension humaine ;
-2. un fait concret vérifiable ou un détail de contexte ;
-3. une phrase qui relie ce fait au rôle du morceau dans l’émission.
-
-Répertoire de structures narratives :
-Pour chaque chronique, choisis une structure dans ce répertoire comme point de départ.
-La structure sert le récit — ne la nomme pas, ne l’explique pas : habite-la.
-IMPÉRATIF : utilise au moins 5 structures différentes sur les 8 chroniques. Ne répète jamais la même structure deux fois dans la même émission.
-
+Liste des story types :
 L’Erreur Sacrée : un accident technique (larsen, voix qui déraille) que l’artiste garde et qui devient la signature du titre.
 Le Transfert : la chanson était destinée à une autre star qui l’a refusée ; l’artiste l’enregistre par dépit et décroche le tube de sa vie.
 La Fausse Piste : le public adore le morceau pour son énergie joyeuse, mais le texte cache une tragédie ou une noirceur absolue.
@@ -1272,9 +1209,9 @@ Le Duel des Charts : comment un "petit" morceau a terrassé un monstre sacré de
 La Métamorphose : l’artiste dans un genre opposé juste avant le déclic — comment un rockeur finit par signer une ballade acoustique.
 Le Flash : la création d’un tube écrit en une heure, sur un coin de table, sous la pression d’un producteur.
 Le Paradoxe : une mélodie joyeuse sur un texte sombre — le public danse sur une tragédie personnelle.
-Le Snapshot Géographique : une adresse précise, une rue ou une chambre d’hôtel comme point de départ.
+Le Snapshot Géographique : une adresse précise, une rue ou une chambre d’hôtel comme point de départ de toute l’histoire.
 La Note de Frais : une dette, une taxe ou une banqueroute qui force l’artiste à composer son plus grand succès pour survivre.
-L’Héritage Volé : partez d’un sample actuel pour remonter à la source originale oubliée et méconnue.
+L’Héritage Volé : remonter d’un tube actuel à la source originale oubliée — le sample, la mélodie, l’accord chipé.
 Le Masque : l’artiste utilise un alter ego pour hurler une vérité qu’il n’ose pas dire en son nom propre.
 Le Déclic Anodin : un moment banal (une discussion avec un enfant, un titre de journal) qui devient le refrain d’une génération.
 La Séance Fantôme : une dispute entre musiciens ou un invité mystère qui change le destin du morceau.
@@ -1288,7 +1225,7 @@ Le Duel Fratricide : deux membres enregistrent leurs parties séparément ; la t
 Le Sample Fantôme : remonter d’un tube actuel à la boucle de trois secondes volée à un vieux disque de soul dont l’auteur vit dans l’anonymat.
 La Mise au Banni : le morceau interdit de radio ; le scandale provoque l’hystérie et propulse les ventes sous le manteau.
 L’Objet Unique : tout repose sur un instrument déniché aux puces ou un synthétiseur cassé que personne n’arrive à imiter.
-La Lettre de Rupture : le texte est un message direct laissé sur un répondeur, mis en musique sans modification.
+La Lettre de Rupture : le texte est un message direct laissé sur un répondeur ou écrit sur un coin de table, mis en musique sans modification.
 Le Naufrage Évité : la bande magnétique a failli être effacée ; le sauvetage in extremis quelques heures avant le pressage.
 L’Éclair de Génie Solitaire : tout le groupe est parti manger ; le chanteur reste seul, enregistre une prise unique brute qui devient le succès.
 Le Voyage Initiatique : l’artiste fuit sa ville, s’isole dans un pays étranger ; le morceau est le résultat de ce dépaysement.
@@ -1302,6 +1239,49 @@ Le Climat Politique : une loi, une taxe ou une guerre froide comme contexte ; sa
 La Géographie Urbaine : le morceau appartient à un quartier précis — l’odeur du bitume, la fermeture des usines qui ont donné naissance au son.
 Le Slang et l’Argot : l’origine d’une expression culte du refrain qui a fini par entrer dans le dictionnaire.
 La Fin d’un Monde : le morceau sort juste avant une catastrophe ou un changement radical — la bande-son du dernier soir avant la tempête.
+
+— ÉTAPE 2 : Construire la playlist en 6 chapitres —
+
+Le titre 1 (le morceau choisi) est le cœur de l’histoire — l’angle s’y applique directement.
+Les 5 autres morceaux construisent l’histoire autour de lui, chacun à un moment différent du récit.
+
+Arc en 6 chapitres :
+- Chapitre 1 (titre choisi) : l’angle révélé — la tension centrale de l’émission, posée d’emblée.
+- Chapitre 2 : l’origine — ce qui a rendu ça possible. L’artiste ou le morceau qui précède, l’influence directe, les conditions.
+- Chapitre 3 : le parallèle — un autre titre qui a vécu quelque chose de similaire, qui éclaire l’angle par résonance.
+- Chapitre 4 : le tournant ou la confrontation — ce que l’angle a changé, ou son opposé direct.
+- Chapitre 5 : l’héritier — ce que l’angle a produit, qui en a hérité, comment ça a résonné dans le temps.
+- Chapitre 6 : la résolution ou l’ouverture — où en est-on, ce que l’émission laisse en suspens.
+
+Cette structure est un guide, pas un carcan. Adapte les chapitres à ce que l’histoire impose réellement.
+Ce qui est obligatoire : l’ARC. L’auditeur doit ressentir une progression, pas une liste.
+
+Règles pour la playlist :
+- 6 titres au total ;
+- le titre 1 doit être exactement le morceau sélectionné : même artiste, même titre ;
+- la diversité d’artistes dépend du story type : si l’histoire est centrée sur un artiste, jusqu’à 3 de ses morceaux ; si elle rayonne sur une scène ou un phénomène, 2 max du même artiste ;
+- chaque morceau est choisi parce qu’il est le seul possible à cet endroit du récit — pas parce qu’il ressemble au titre 1 ;
+- la cohérence est narrative, pas stylistique : deux morceaux peuvent sonner très différemment s’ils servent le même fil ;
+- choisis des titres assez connus pour être retrouvés via l’API Deezer.
+
+Le champ "reason" doit expliquer en une phrase quel chapitre ce morceau joue dans le récit.
+
+— ÉTAPE 3 : Écrire les chroniques —
+
+Chaque chronique doit être écrite pour être dite à voix haute.
+Objectif : 80 à 120 mots, soit 30 à 45 secondes d’antenne. Trois à cinq phrases.
+La première phrase : courte, moins de 14 mots, accroche directe — aucun préambule.
+Alterner phrases courtes et phrases moyennes. Pas de longues subordonnées.
+Pas de deux-points, parenthèses, incises lourdes.
+Ton : radio musicale cultivée, proche, alerte — jamais solennel, jamais académique.
+
+Architecture de chaque chronique :
+1. L’accroche : entre immédiatement dans la tension ou le fait surprenant.
+2. Le fait : une information concrète et vérifiable — date, nom, anecdote, chiffre, contexte.
+3. Le lien au récit : une phrase qui relie ce morceau à l’histoire globale de l’émission.
+
+La chronique du titre 1 raconte l’angle en pleine lumière — c’est le cœur de l’émission.
+Les chroniques 2-6 font avancer l’arc : chacune apporte quelque chose que les autres ne peuvent pas apporter.
 
 Écris comme une voix radio qui sait couper.
 Pas comme une note de programme.
@@ -1354,7 +1334,7 @@ Exactitude :
 - exemple de vigilance : pour Rosalía / El Mal Querer, le producteur central connu est El Guincho.
 
 Transitions entre morceaux :
-Les titres 2 à 8 peuvent avoir un champ "transition" optionnel.
+Les titres 2 à 6 peuvent avoir un champ "transition" optionnel.
 Ce champ est lu à voix haute après la fin du morceau précédent, avant la chronique du titre suivant.
 Il doit faire exactement 1 phrase, maximum 18 mots.
 Il crée un pont sonore entre deux morceaux : pourquoi on passe de l’un à l’autre.
@@ -1388,11 +1368,16 @@ Schéma :
 }
 
 Auto-vérification avant de répondre :
-Pour chaque chronique, vérifie :
-- y a-t-il au moins une date précise, un album, un producteur, un label, un lieu, une controverse, un fait de classement ou un détail vérifiable ?
-- contient-elle des paroles ou du contexte, pas seulement de la production ?
-- évite-t-elle de répéter une autre chronique ?
-- ressemble-t-elle à une vraie histoire, pas à une description ?
+Pour l'émission entière :
+- le story type choisi correspond-il réellement à l'histoire du titre choisi ?
+- les 6 morceaux forment-ils un arc avec un début, une tension et une résolution ?
+- chaque morceau est-il irremplaçable à sa place dans le récit ?
+
+Pour chaque chronique :
+- contient-elle au moins un fait concret et vérifiable (date, nom, chiffre, anecdote) ?
+- fait-elle avancer l'arc — apporte-t-elle quelque chose que les autres chroniques n'apportent pas ?
+- évite-t-elle de répéter ce qui a déjà été dit dans une autre chronique ?
+- ressemble-t-elle à une vraie histoire radio, pas à une description de disque ?
 
 Si une chronique échoue, réécris-la avant de retourner le JSON.
 `.trim();
@@ -1498,8 +1483,8 @@ function isValidEpisode(episode) {
       typeof episode.angle === "string" &&
       typeof episode.intro === "string" &&
       Array.isArray(episode.tracks) &&
-      episode.tracks.length >= 6 &&
-      episode.tracks.length <= 8 &&
+      episode.tracks.length >= 5 &&
+      episode.tracks.length <= 6 &&
       cleanText(episode.title) &&
       cleanText(episode.angle) &&
       cleanText(episode.intro) &&
