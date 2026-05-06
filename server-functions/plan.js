@@ -117,8 +117,13 @@ exports.handler = async (event) => {
     return json(400, { error: "Les champs artist, title et album doivent rester courts." });
   }
 
+  const excludedStoryTypes = Array.isArray(body.excludedStoryTypes)
+    ? body.excludedStoryTypes.map((s) => cleanText(s)).filter(Boolean).slice(0, 20)
+    : [];
+  const options = { excludedStoryTypes };
+
   try {
-    const episode = await createAiEpisode(seed);
+    const episode = await createAiEpisode(seed, options);
     return json(200, episode);
   } catch (error) {
     logAiError(error);
@@ -129,7 +134,7 @@ exports.handler = async (event) => {
   }
 };
 
-async function createAiEpisode(seed) {
+async function createAiEpisode(seed, options = {}) {
   const provider = getAiProvider();
 
   if (provider === "local") {
@@ -138,13 +143,16 @@ async function createAiEpisode(seed) {
 
   const webContext = await createEditorialWebContext(seed);
 
-  return retryOnOverload(async () => {
-    if (provider === "deepseek") return createDeepSeekEpisode(seed, webContext);
-    if (provider === "openai") return createOpenAiEpisode(seed, webContext);
-    if (provider === "claude") return createClaudeEpisode(seed, webContext);
-    if (provider === "gemini") return createGeminiEpisode(seed, webContext);
+  const episode = await retryOnOverload(async () => {
+    if (provider === "deepseek") return createDeepSeekEpisode(seed, webContext, options);
+    if (provider === "openai") return createOpenAiEpisode(seed, webContext, options);
+    if (provider === "claude") return createClaudeEpisode(seed, webContext, options);
+    if (provider === "gemini") return createGeminiEpisode(seed, webContext, options);
     throw new Error(`Fournisseur IA inconnu : ${provider}.`);
   });
+
+  // Validation Deezer côté serveur : remplace les tracks introuvables
+  return validateAndRepairDeezerTracks(episode, seed, options, provider);
 }
 
 async function retryOnOverload(fn, maxAttempts = 3) {
@@ -199,7 +207,7 @@ async function createEditorialWebContext(seed) {
       const payloads = await Promise.all(
         queries.map((q) => searchExa(q).catch(() => null)),
       );
-      context = formatExaContext(payloads, seed);
+      context = formatExaContext(payloads, queries, seed);
     } else {
       const queries = buildTavilyQueries(seed);
       const payloads = await Promise.all(
@@ -239,18 +247,59 @@ function buildExaQueries(seed) {
   const albumPart = album ? ` album ${album}` : "";
 
   return [
+    // 1. Encyclopédie + crédits définitifs (Wikipedia, AllMusic, Discogs)
     {
-      query: `${artist} "${title}"${albumPart} recording production release history studio producer sample label`,
-    },
-    {
-      query: `${artist} biography discography career influences collaborators cultural impact`,
-    },
-    {
-      query: `${artist} "${title}" behind the scenes anecdote little known fact story making of controversy interview`,
+      label: "Crédits encyclopédiques",
+      query: `${artist} "${title}"${albumPart} producer studio label recording session credits release date`,
       includeDomains: [
-        "songfacts.com", "allmusic.com", "discogs.com", "genius.com",
-        "udiscovermusic.com", "faroutmagazine.co.uk", "loudwire.com",
-        "ultimate-guitar.com", "musicradar.com", "factmag.com",
+        "en.wikipedia.org", "fr.wikipedia.org",
+        "allmusic.com", "discogs.com", "rateyourmusic.com",
+      ],
+    },
+    // 2. Anecdotes, coulisses, making-of (sites spécialisés)
+    {
+      label: "Anecdotes et coulisses",
+      query: `${artist} "${title}" behind the scenes anecdote story making of recording session interview oral history`,
+      includeDomains: [
+        "songfacts.com", "udiscovermusic.com", "faroutmagazine.co.uk",
+        "loudwire.com", "ultimateclassicrock.com", "thequietus.com",
+        "factmag.com", "musicradar.com", "soundonsound.com",
+      ],
+    },
+    // 3. Paroles et signification (Genius)
+    {
+      label: "Paroles et signification",
+      query: `${artist} "${title}" lyrics meaning analysis songwriting interpretation what is about`,
+      includeDomains: [
+        "genius.com", "songfacts.com", "songmeanings.com",
+      ],
+    },
+    // 4. Presse anglo-saxonne de référence
+    {
+      label: "Presse musicale anglo-saxonne",
+      query: `${artist} "${title}" review feature article context release impact`,
+      includeDomains: [
+        "pitchfork.com", "rollingstone.com", "nme.com", "stereogum.com",
+        "theguardian.com", "npr.org", "mojo4music.com", "uncut.co.uk",
+        "consequence.net", "billboard.com", "spin.com",
+      ],
+    },
+    // 5. Presse française et radio publique
+    {
+      label: "Presse française et radio publique",
+      query: `${artist} "${title}" article histoire chronique critique contexte`,
+      includeDomains: [
+        "lesinrocks.com", "telerama.fr", "lemonde.fr", "liberation.fr",
+        "radiofrance.fr", "franceinter.fr", "francemusique.fr",
+        "franceculture.fr", "rfi.fr", "magic-rpm.com", "rocketc.com",
+      ],
+    },
+    // 6. Samples, reprises, héritage musical (WhoSampled, Discogs)
+    {
+      label: "Samples, reprises et héritage",
+      query: `${artist} "${title}" samples covers references influence sampled by interpolations`,
+      includeDomains: [
+        "whosampled.com", "secondhandsongs.com", "discogs.com",
       ],
     },
   ];
@@ -305,32 +354,30 @@ async function searchExa({ query, includeDomains }) {
   return payload || {};
 }
 
-function formatExaContext(payloads, seed) {
-  const sectionLabels = [
-    `Titre "${seed.artist} — ${seed.title}" : production, enregistrement, sortie, sample, label`,
-    `Artiste "${seed.artist}" : biographie, scène, collaborateurs, anecdotes, impact culturel`,
-    `Coulisses "${seed.artist} — ${seed.title}" : histoires méconnues, making-of, controverses, interviews`,
-  ];
-
+function formatExaContext(payloads, queries, seed) {
   const sections = payloads
     .map((payload, i) => {
       if (!payload) return null;
 
+      const label = queries[i]?.label || `Recherche ${i + 1}`;
       const results = Array.isArray(payload?.results) ? payload.results : [];
       const lines = results
         .filter((r) => r?.title && (Array.isArray(r?.highlights) ? r.highlights.length : r?.text))
         .slice(0, EXA_MAX_RESULTS)
         .map((r, j) => {
-          const title = cleanText(r.title).slice(0, 120);
+          const source = cleanText(r.title).slice(0, 120);
+          const url = cleanText(r.url || "").slice(0, 80);
+          const domain = url ? extractDomain(url) : "";
           const content = Array.isArray(r.highlights)
-            ? r.highlights.map((h) => cleanText(h)).join(" ").slice(0, 600)
-            : cleanText(r.text || "").slice(0, 600);
-          return `  ${j + 1}. ${title} — ${content}`;
+            ? r.highlights.map((h) => cleanText(h)).join(" — ").slice(0, 800)
+            : cleanText(r.text || "").slice(0, 800);
+          const sourceLine = domain ? `${source} (${domain})` : source;
+          return `  [${i + 1}.${j + 1}] ${sourceLine} — ${content}`;
         });
 
       if (!lines.length) return null;
 
-      return `### ${sectionLabels[i] || `Recherche ${i + 1}`}\n${lines.join("\n")}`;
+      return `### ${label}\n${lines.join("\n")}`;
     })
     .filter(Boolean);
 
@@ -339,13 +386,25 @@ function formatExaContext(payloads, seed) {
   }
 
   return `
-Dossier de recherche éditoriale pour "${seed.artist} — ${seed.title}".
-Extrais les faits précis : dates, noms, chiffres, anecdotes vérifiables, contexte de production.
-Ne cite pas les URL. Ne récite pas ces sources — transforme-les en matière éditoriale.
-Si une information ne figure pas ici et que tu n'en es pas sûr, ne l'invente pas.
+DOSSIER DE RECHERCHE pour "${seed.artist} — ${seed.title}".
+Ces extraits proviennent de sources documentées (Wikipedia, AllMusic, Discogs, Genius, Pitchfork, Rolling Stone, Songfacts, Les Inrockuptibles, Le Monde, France Musique, WhoSampled, etc.).
+
+RÈGLE DE SOURÇAGE STRICTE :
+- Tu n'utilises QUE les faits qui figurent dans ce dossier.
+- Si un fait n'est pas dans le dossier, tu ne l'inventes pas — tu choisis un autre angle ou tu décris une caractéristique sonore vérifiable à l'écoute.
+- Tu peux citer mentalement la source pour vérifier ([1.2], [3.1] etc.) mais tu ne mentionnes JAMAIS la source dans la chronique parlée.
+- Croise au moins deux extraits avant d'affirmer un fait pointu (date exacte, nom de producteur, chiffre).
 
 ${sections.join("\n\n")}
 `.trim();
+}
+
+function extractDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
 }
 
 function buildTavilyQueries(seed) {
@@ -519,7 +578,7 @@ function normalizeAiProvider(value) {
   throw new Error(`Fournisseur IA inconnu : ${value}.`);
 }
 
-async function createDeepSeekEpisode(seed, webContext) {
+async function createDeepSeekEpisode(seed, webContext, options = {}) {
   if (!process.env.DEEPSEEK_API_KEY) {
     throw new Error("Configuration DeepSeek manquante.");
   }
@@ -531,6 +590,7 @@ async function createDeepSeekEpisode(seed, webContext) {
     model: DEEPSEEK_MODEL,
     seed,
     webContext,
+    options,
     responseFormat: {
       type: "json_object",
     },
@@ -558,7 +618,7 @@ function getDeepSeekExtraBody() {
   };
 }
 
-async function createOpenAiEpisode(seed, webContext) {
+async function createOpenAiEpisode(seed, webContext, options = {}) {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("Configuration OpenAI manquante.");
   }
@@ -570,6 +630,7 @@ async function createOpenAiEpisode(seed, webContext) {
     model: OPENAI_MODEL,
     seed,
     webContext,
+    options,
     responseFormat: {
       type: "json_schema",
       json_schema: {
@@ -588,6 +649,7 @@ async function createOpenAiCompatibleEpisode({
   model,
   seed,
   webContext,
+  options = {},
   responseFormat,
   extraBody = {},
 }) {
@@ -610,7 +672,7 @@ async function createOpenAiCompatibleEpisode({
         },
         {
           role: "user",
-          content: buildPrompt(seed, webContext),
+          content: buildPrompt(seed, webContext, options),
         },
       ],
     }),
@@ -797,7 +859,7 @@ function normalizeAssistantContent(value) {
   return "";
 }
 
-async function createGeminiEpisode(seed, webContext) {
+async function createGeminiEpisode(seed, webContext, options = {}) {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("Configuration Gemini manquante.");
   }
@@ -817,7 +879,7 @@ async function createGeminiEpisode(seed, webContext) {
         contents: [
           {
             role: "user",
-            parts: [{ text: buildPrompt(seed, webContext) }],
+            parts: [{ text: buildPrompt(seed, webContext, options) }],
           },
         ],
         generationConfig: getGeminiGenerationConfig(),
@@ -999,7 +1061,7 @@ function getClaudeThinkingConfig() {
   return { type: "enabled", budget_tokens: budget };
 }
 
-async function createClaudeEpisode(seed, webContext) {
+async function createClaudeEpisode(seed, webContext, options = {}) {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error("Configuration Claude manquante.");
   }
@@ -1025,7 +1087,7 @@ async function createClaudeEpisode(seed, webContext) {
       messages: [
         {
           role: "user",
-          content: buildPrompt(seed, webContext),
+          content: buildPrompt(seed, webContext, options),
         },
       ],
     }),
@@ -1132,7 +1194,12 @@ async function repairClaudeEpisodeJson({ content, parseError }) {
   }
 }
 
-function buildPrompt({ artist, title, album }, webContext = "") {
+function buildPrompt({ artist, title, album }, webContext = "", options = {}) {
+  const excluded = Array.isArray(options.excludedStoryTypes) ? options.excludedStoryTypes : [];
+  const excludedBlock = excluded.length
+    ? `\nSTORY TYPES DÉJÀ UTILISÉS POUR CE TITRE — INTERDITS pour cet épisode :\n${excluded.map((s) => `- ${s}`).join("\n")}\nChoisis un story type différent qui s'applique aussi à ce titre. Si le seul angle vrai a déjà été utilisé, choisis l'angle voisin le plus défendable plutôt que de répéter.\n`
+    : "";
+
   return `
 Titre choisi par l’utilisateur :
 {
@@ -1140,7 +1207,7 @@ Titre choisi par l’utilisateur :
   "title": "${title}"
 }
 ${album ? `Album Deezer du morceau choisi : "${album}".` : ""}
-${webContext ? `\n${webContext}\n` : ""}
+${webContext ? `\n${webContext}\n` : ""}${excludedBlock}
 
 Tu es Sillage FM, une radio française de récit musical.
 
@@ -1367,13 +1434,29 @@ Si une chronique peut se résumer à "ce morceau est important parce qu’il est
 - "une tension humaine" si tu ne dis pas laquelle ;
 - ton de dissertation scolaire.
 
-Exactitude :
-- l’exactitude passe avant le style ;
-- ne cite jamais un producteur, label, studio, musicien, sample, réalisateur, année ou lieu si tu n’es pas sûr ;
-- si tu as un doute, décris une clé d’écoute vérifiable dans le son au lieu d’inventer ;
-- une chronique belle mais fausse est interdite ;
-- vérifie mentalement chaque nom propre avant de l’écrire ;
-- exemple de vigilance : pour Rosalía / El Mal Querer, le producteur central connu est El Guincho.
+Exactitude — RÈGLE DE SOURÇAGE STRICTE :
+
+Tu disposes ci-dessus d'un DOSSIER DE RECHERCHE issu de sources documentées (Wikipedia, AllMusic, Discogs, Genius, Pitchfork, Rolling Stone, Songfacts, presse française, WhoSampled).
+
+Règle 1 — Tu n'utilises QUE les faits qui figurent dans ce dossier.
+- Producteurs, labels, studios, musiciens, samples, années, lieux, chiffres : seulement s'ils apparaissent explicitement dans les extraits.
+- Une chronique belle mais inventée est INTERDITE. La crédibilité du programme entier en dépend.
+
+Règle 2 — Si un fait n'est pas dans le dossier :
+- Soit tu changes d'angle pour cette chronique (autre fait disponible).
+- Soit tu décris une caractéristique sonore vérifiable à l'écoute (rythme, instrumentation, structure) — pas un prétendu "détail historique" que tu n'as pas.
+
+Règle 3 — Croisement :
+- Pour un fait pointu (date, nom, chiffre), cherche-le idéalement dans 2 extraits différents avant d'affirmer.
+- Si tu ne le vois qu'une fois et que la source est crédible (Wikipedia, AllMusic, Pitchfork, Rolling Stone, Le Monde, Songfacts), tu peux affirmer.
+- Si tu ne le vois qu'une fois et que la source est fragile, hedge : "selon" / "d'après les sources" / paraphrase.
+
+Règle 4 — Tu ne mentionnes JAMAIS la source dans la chronique parlée. Pas de "selon Wikipédia", "Pitchfork écrit que…". Le sourçage est ton outil de vérité, pas un élément narratif.
+
+En cas de dossier vide ou pauvre :
+- Construis l'émission autour d'un angle plus prudent.
+- Réduis le nombre de faits pointus.
+- Privilégie les caractéristiques sonores observables et le contexte général que tu connais avec certitude.
 
 Transitions entre morceaux :
 Les titres 2 à 6 peuvent avoir un champ "transition" optionnel.
@@ -1678,6 +1761,172 @@ function isSeedOpeningTrack(episode, seed) {
     comparableText(firstTrack.artist) === comparableText(seed.artist) &&
     comparableText(firstTrack.title) === comparableText(seed.title)
   );
+}
+
+const DEEZER_API_URL = "https://api.deezer.com/search";
+const DEEZER_TIMEOUT_MS = numberEnv("DEEZER_TIMEOUT_MS", 4000);
+
+async function validateAndRepairDeezerTracks(episode, seed, options, provider) {
+  if (!episode?.tracks?.length) return episode;
+
+  const validations = await Promise.all(
+    episode.tracks.map((track, i) => validateDeezerTrack(track, i === 0)),
+  );
+
+  const failed = validations
+    .map((v, i) => ({ ...v, index: i }))
+    .filter((v) => !v.found && v.index > 0); // never substitute the seed track (index 0)
+
+  if (!failed.length) {
+    return attachDeezerHints(episode, validations);
+  }
+
+  // Au moins une track introuvable — demande à l'IA de proposer des remplaçants
+  try {
+    const repaired = await repairFailingTracksViaAi({
+      episode,
+      seed,
+      options,
+      provider,
+      failedIndexes: failed.map((f) => f.index),
+    });
+
+    if (repaired) {
+      const reValidations = await Promise.all(
+        repaired.tracks.map((track, i) => validateDeezerTrack(track, i === 0)),
+      );
+      return attachDeezerHints(repaired, reValidations);
+    }
+  } catch {
+    // si la réparation échoue, on retombe sur le comportement client (fallback frontend)
+  }
+
+  return attachDeezerHints(episode, validations);
+}
+
+async function validateDeezerTrack(track, isSeed) {
+  if (isSeed) {
+    return { found: true, match: null };
+  }
+
+  const query = `${track.artist} ${track.title}`.trim();
+
+  if (!query) return { found: false, match: null };
+
+  try {
+    const url = `${DEEZER_API_URL}?q=${encodeURIComponent(query)}&limit=8`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), DEEZER_TIMEOUT_MS);
+
+    let response;
+    try {
+      response = await fetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!response.ok) return { found: false, match: null };
+
+    const payload = await response.json().catch(() => null);
+    const results = Array.isArray(payload?.data) ? payload.data : [];
+    const match = pickBestDeezerMatch(results, track);
+
+    return match ? { found: true, match } : { found: false, match: null };
+  } catch {
+    return { found: false, match: null };
+  }
+}
+
+function pickBestDeezerMatch(results, wanted) {
+  const playable = results.filter((r) => r?.preview && r?.title && r?.artist?.name);
+  if (!playable.length) return null;
+
+  const wantedArtist = comparableText(wanted.artist);
+  const wantedTitle = comparableText(wanted.title);
+
+  // Match exact artiste + titre
+  const exact = playable.find(
+    (r) =>
+      comparableText(r.artist.name).includes(wantedArtist) &&
+      comparableText(r.title).includes(wantedTitle),
+  );
+  if (exact) return exact;
+
+  // Match titre seul + artiste partiel
+  const partial = playable.find(
+    (r) =>
+      comparableText(r.title).includes(wantedTitle) &&
+      comparableText(r.artist.name).split(" ").some((w) => wantedArtist.includes(w) && w.length > 2),
+  );
+  return partial || null;
+}
+
+function attachDeezerHints(episode, validations) {
+  return {
+    ...episode,
+    tracks: episode.tracks.map((track, i) => {
+      const v = validations[i];
+      if (!v?.match) return track;
+      return {
+        ...track,
+        deezerId: String(v.match.id || ""),
+        preview: v.match.preview || track.preview,
+        cover: v.match.album?.cover_medium || track.cover,
+        link: v.match.link || track.link,
+      };
+    }),
+  };
+}
+
+async function repairFailingTracksViaAi({ episode, seed, options, provider, failedIndexes }) {
+  const failedDescriptions = failedIndexes
+    .map((i) => `Track ${i + 1} : ${episode.tracks[i].artist} — ${episode.tracks[i].title} (rôle : ${episode.tracks[i].reason || "?"})`)
+    .join("\n");
+
+  const repairBrief = `
+Les tracks suivantes n'ont pas été trouvées sur Deezer et doivent être remplacées :
+
+${failedDescriptions}
+
+Remplace chacune de ces tracks par une track équivalente qui :
+1. Existe vraiment et est sur Deezer (titres connus, pas de morceaux obscurs).
+2. Joue le même rôle dans l'arc narratif (même chapitre).
+3. Conserve la cohérence éditoriale avec le story type choisi (champ "angle").
+4. Vient idéalement d'un artiste différent que les autres tracks de la playlist (sauf si l'angle est un portrait).
+
+Garde les autres tracks INCHANGÉES. Réécris les chronicles et transitions des tracks remplacées pour qu'elles racontent vraiment ces nouvelles tracks (même hook + enjeu + personnage + fil tiré, mais sur les nouvelles infos).
+
+Retourne l'épisode complet en JSON avec le même schéma.
+
+Episode actuel :
+${JSON.stringify(episode).slice(0, 14000)}
+`.trim();
+
+  // Réutilise le provider courant pour la réparation
+  if (provider === "gemini") {
+    return repairGeminiEpisodeJson({
+      content: JSON.stringify(episode),
+      parseError: new Error(repairBrief),
+    });
+  }
+  if (provider === "claude") {
+    return repairClaudeEpisodeJson({
+      content: JSON.stringify(episode),
+      parseError: new Error(repairBrief),
+    });
+  }
+
+  // OpenAI/DeepSeek
+  const isDeepseek = provider === "deepseek";
+  return repairEpisodeJson({
+    apiName: isDeepseek ? "DeepSeek" : "OpenAI",
+    apiUrl: isDeepseek ? (process.env.DEEPSEEK_API_URL || DEEPSEEK_API_URL) : OPENAI_API_URL,
+    apiKey: isDeepseek ? process.env.DEEPSEEK_API_KEY : process.env.OPENAI_API_KEY,
+    model: isDeepseek ? DEEPSEEK_MODEL : OPENAI_MODEL,
+    content: JSON.stringify(episode),
+    parseError: new Error(repairBrief),
+    extraBody: isDeepseek ? getDeepSeekExtraBody() : {},
+  });
 }
 
 function cleanText(value) {

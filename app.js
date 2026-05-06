@@ -7,9 +7,11 @@ const FALLBACK_COVER =
 
 const loadingMessages = [
   "Sillage prépare l’émission…",
-  "Recherche des morceaux…",
+  "Plongée dans les sources : AllMusic, Pitchfork, Songfacts…",
+  "Recoupement des faits, vérification des dates…",
+  "Construction de l’arc narratif…",
+  "Vérification des morceaux sur Deezer…",
   "Écriture de la voix antenne…",
-  "Sélection des extraits…",
 ];
 
 const els = {
@@ -168,6 +170,9 @@ async function startEpisode(seedTrack) {
   const runId = resetRun();
   showLoading();
 
+  const seedKey = `${comparableTextLite(seedTrack.artist.name)}|${comparableTextLite(seedTrack.title)}`;
+  const excludedStoryTypes = readUsedStoryTypes(seedKey);
+
   try {
     const episode = await fetchPlan({
       artist: seedTrack.artist.name,
@@ -175,7 +180,12 @@ async function startEpisode(seedTrack) {
       album: seedTrack.album?.title || "",
       deezerArtistId: seedTrack.artist?.id || "",
       deezerTrackId: seedTrack.id || "",
+      excludedStoryTypes,
     });
+
+    if (episode?.angle) {
+      rememberStoryType(seedKey, episode.angle);
+    }
 
     if (!isCurrentRun(runId)) return;
 
@@ -946,4 +956,42 @@ function normalizeText(value) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+function comparableTextLite(value) {
+  return normalizeText(value).slice(0, 80);
+}
+
+const STORY_TYPE_MEMORY_KEY = "sillage:storyTypesByTrack";
+const STORY_TYPE_MEMORY_LIMIT = 8;
+
+function readStoryTypeMemory() {
+  try {
+    const raw = window.localStorage?.getItem(STORY_TYPE_MEMORY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function readUsedStoryTypes(seedKey) {
+  const memory = readStoryTypeMemory();
+  const list = Array.isArray(memory[seedKey]) ? memory[seedKey] : [];
+  return list.filter((s) => typeof s === "string" && s.trim()).slice(-STORY_TYPE_MEMORY_LIMIT);
+}
+
+function rememberStoryType(seedKey, angle) {
+  const cleaned = String(angle || "").trim().slice(0, 200);
+  if (!cleaned) return;
+  try {
+    const memory = readStoryTypeMemory();
+    const existing = Array.isArray(memory[seedKey]) ? memory[seedKey] : [];
+    const updated = [...existing.filter((s) => s !== cleaned), cleaned].slice(-STORY_TYPE_MEMORY_LIMIT);
+    memory[seedKey] = updated;
+    window.localStorage?.setItem(STORY_TYPE_MEMORY_KEY, JSON.stringify(memory));
+  } catch {
+    // localStorage indisponible (mode priv\u00e9, etc.) \u2014 pas grave, on perd la vari\u00e9t\u00e9 sur replay
+  }
 }
