@@ -5,6 +5,11 @@ const GEMINI_TTS_TIMEOUT_MS = numberEnv("GEMINI_TTS_TIMEOUT_MS", 15000);
 const GEMINI_TTS_MAX_CHARS = numberEnv("GEMINI_TTS_MAX_CHARS", 800);
 const GEMINI_TTS_SAMPLE_RATE = 24000;
 
+const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
+const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "4UaMo6jttNwgmbtFfF1z";
+const ELEVENLABS_MODEL = process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2";
+const ELEVENLABS_TIMEOUT_MS = numberEnv("ELEVENLABS_TIMEOUT_MS", 15000);
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type",
@@ -20,8 +25,10 @@ exports.handler = async (event) => {
     return json(405, { error: "Méthode non autorisée." });
   }
 
-  if (!process.env.GEMINI_API_KEY) {
-    return json(500, { error: "Configuration Gemini TTS manquante." });
+  const provider = getTtsProvider();
+
+  if (!provider) {
+    return json(500, { error: "Configuration TTS manquante." });
   }
 
   let body;
@@ -42,8 +49,21 @@ exports.handler = async (event) => {
   }
 
   try {
-    const wavBuffer = await createSpeech(text);
+    if (provider === "elevenlabs") {
+      const mp3Buffer = await createSpeechElevenLabs(text);
+      return {
+        statusCode: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "audio/mpeg",
+          "Cache-Control": "no-store",
+        },
+        isBase64Encoded: true,
+        body: mp3Buffer.toString("base64"),
+      };
+    }
 
+    const wavBuffer = await createSpeechGemini(text);
     return {
       statusCode: 200,
       headers: {
@@ -56,13 +76,66 @@ exports.handler = async (event) => {
     };
   } catch (error) {
     return json(502, {
-      error: "Gemini TTS ne répond pas pour le moment.",
+      error: "La synthèse vocale ne répond pas pour le moment.",
       detail: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
 
-async function createSpeech(text) {
+function getTtsProvider() {
+  if (process.env.ELEVENLABS_API_KEY) {
+    return "elevenlabs";
+  }
+  if (process.env.GEMINI_API_KEY) {
+    return "gemini";
+  }
+  return null;
+}
+
+async function createSpeechElevenLabs(text) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ELEVENLABS_TIMEOUT_MS);
+  let response;
+
+  try {
+    response = await fetch(`${ELEVENLABS_API_URL}/${encodeURIComponent(ELEVENLABS_VOICE_ID)}`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "xi-api-key": process.env.ELEVENLABS_API_KEY,
+        "Content-Type": "application/json",
+        "Accept": "audio/mpeg",
+      },
+      body: JSON.stringify({
+        text,
+        model_id: ELEVENLABS_MODEL,
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.8,
+          style: 0.2,
+          use_speaker_boost: true,
+        },
+      }),
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(`ElevenLabs a dépassé ${ELEVENLABS_TIMEOUT_MS}ms.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    throw new Error(`ElevenLabs ${response.status}: ${errorText.slice(0, 300)}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+async function createSpeechGemini(text) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), GEMINI_TTS_TIMEOUT_MS);
   let response;

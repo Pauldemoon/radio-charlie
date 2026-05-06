@@ -545,6 +545,19 @@ async function createOpenAiCompatibleEpisode({
     throw new Error(`Format d'émission ${apiName} invalide: le morceau choisi doit ouvrir l'émission.`);
   }
 
+  const contentIssues = validateEpisodeContentIssues(episode);
+  if (contentIssues.length) {
+    episode = await repairEpisodeJson({
+      apiName,
+      apiUrl,
+      apiKey,
+      model,
+      content: JSON.stringify(episode),
+      parseError: new Error(`Problèmes éditoriaux à corriger:\n${contentIssues.join("\n")}`),
+      extraBody,
+    });
+  }
+
   return episode;
 }
 
@@ -692,13 +705,105 @@ async function createGeminiEpisode(seed, webContext) {
   }
 
   const content = getGeminiContent(payload, responseText);
-  const episode = normalizeEpisode(parseEpisode(content));
+  let episode;
+
+  try {
+    episode = normalizeEpisode(parseEpisode(content));
+  } catch (error) {
+    episode = await repairGeminiEpisodeJson({ content, parseError: error });
+  }
+
+  if (!isValidEpisode(episode)) {
+    episode = await repairGeminiEpisodeJson({
+      content: JSON.stringify(episode || content || {}),
+      parseError: new Error("Format d'émission Gemini invalide."),
+    });
+  }
+
+  if (!isValidEpisode(episode)) {
+    throw new Error("Format d'émission Gemini invalide après réparation JSON.");
+  }
+
+  if (!isSeedOpeningTrack(episode, seed)) {
+    episode = await repairGeminiEpisodeJson({
+      content: JSON.stringify(episode),
+      parseError: new Error(
+        `Contrainte éditoriale: le premier titre doit être exactement ${seed.artist} - ${seed.title}.`,
+      ),
+    });
+  }
 
   if (!isValidEpisode(episode) || !isSeedOpeningTrack(episode, seed)) {
-    throw new Error("Format d'émission Gemini invalide.");
+    throw new Error("Format d'émission Gemini invalide: le morceau choisi doit ouvrir l'émission.");
+  }
+
+  const contentIssues = validateEpisodeContentIssues(episode);
+  if (contentIssues.length) {
+    episode = await repairGeminiEpisodeJson({
+      content: JSON.stringify(episode),
+      parseError: new Error(`Problèmes éditoriaux à corriger:\n${contentIssues.join("\n")}`),
+    });
   }
 
   return episode;
+}
+
+async function repairGeminiEpisodeJson({ content, parseError }) {
+  if (!content) {
+    throw parseError;
+  }
+
+  const response = await fetch(
+    `${GEMINI_API_URL}/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": process.env.GEMINI_API_KEY,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: [
+                  "Tu répares une réponse JSON pour Sillage FM. Retourne uniquement un objet JSON valide qui respecte la contrainte donnée. Tu peux corriger titres, artistes, rôles, raisons ou chroniques si la contrainte l'exige, mais garde le même angle éditorial. Aucun markdown.",
+                  `Erreur JSON: ${parseError.message}\n\nRéponse à réparer:\n${String(content).slice(0, 14000)}`,
+                ].join("\n\n"),
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0,
+          maxOutputTokens: AI_MAX_TOKENS,
+          responseMimeType: "application/json",
+          responseSchema: GEMINI_EPISODE_SCHEMA,
+        },
+      }),
+    },
+  );
+
+  const responseText = await response.text().catch(() => "");
+  const payload = parseJsonSafely(responseText);
+
+  if (!response.ok) {
+    const apiMessage =
+      payload?.error?.message ||
+      payload?.message ||
+      responseText.slice(0, 600) ||
+      "Réponse vide.";
+    throw new Error(`Gemini réparation JSON ${response.status}: ${apiMessage}`);
+  }
+
+  try {
+    return normalizeEpisode(parseEpisode(getGeminiContent(payload, responseText)));
+  } catch (repairError) {
+    throw new Error(
+      `Gemini JSON invalide: ${parseError.message}. Réparation échouée: ${repairError.message}`,
+    );
+  }
 }
 
 function getGeminiGenerationConfig() {
@@ -789,13 +894,95 @@ async function createClaudeEpisode(seed, webContext) {
     ?.filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("\n");
-  const episode = normalizeEpisode(parseEpisode(content));
+
+  let episode;
+
+  try {
+    episode = normalizeEpisode(parseEpisode(content));
+  } catch (error) {
+    episode = await repairClaudeEpisodeJson({ content, parseError: error });
+  }
+
+  if (!isValidEpisode(episode)) {
+    episode = await repairClaudeEpisodeJson({
+      content: JSON.stringify(episode || content || {}),
+      parseError: new Error("Format d'émission Claude invalide."),
+    });
+  }
+
+  if (!isValidEpisode(episode)) {
+    throw new Error("Format d'émission Claude invalide après réparation JSON.");
+  }
+
+  if (!isSeedOpeningTrack(episode, seed)) {
+    episode = await repairClaudeEpisodeJson({
+      content: JSON.stringify(episode),
+      parseError: new Error(
+        `Contrainte éditoriale: le premier titre doit être exactement ${seed.artist} - ${seed.title}.`,
+      ),
+    });
+  }
 
   if (!isValidEpisode(episode) || !isSeedOpeningTrack(episode, seed)) {
-    throw new Error("Format d'émission invalide.");
+    throw new Error("Format d'émission Claude invalide: le morceau choisi doit ouvrir l'émission.");
+  }
+
+  const contentIssues = validateEpisodeContentIssues(episode);
+  if (contentIssues.length) {
+    episode = await repairClaudeEpisodeJson({
+      content: JSON.stringify(episode),
+      parseError: new Error(`Problèmes éditoriaux à corriger:\n${contentIssues.join("\n")}`),
+    });
   }
 
   return episode;
+}
+
+async function repairClaudeEpisodeJson({ content, parseError }) {
+  if (!content) {
+    throw parseError;
+  }
+
+  const response = await fetch(ANTHROPIC_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01",
+      "x-api-key": process.env.ANTHROPIC_API_KEY,
+    },
+    body: JSON.stringify({
+      model: ANTHROPIC_MODEL,
+      max_tokens: AI_MAX_TOKENS,
+      temperature: 0,
+      system:
+        "Tu répares une réponse JSON pour Sillage FM. Retourne uniquement un objet JSON valide qui respecte la contrainte donnée. Tu peux corriger titres, artistes, rôles, raisons ou chroniques si la contrainte l'exige, mais garde le même angle éditorial. Aucun markdown.",
+      messages: [
+        {
+          role: "user",
+          content: `Erreur JSON: ${parseError.message}\n\nRéponse à réparer:\n${String(content).slice(0, 14000)}`,
+        },
+      ],
+    }),
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || "Erreur Claude réparation.");
+  }
+
+  const repairContent = payload?.content
+    ?.filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("\n");
+
+  try {
+    return normalizeEpisode(parseEpisode(repairContent));
+  } catch (repairError) {
+    throw new Error(
+      `Claude JSON invalide: ${parseError.message}. Réparation échouée: ${repairError.message}`,
+    );
+  }
 }
 
 function buildPrompt({ artist, title, album }, webContext = "") {
@@ -884,8 +1071,8 @@ Le champ "reason" doit expliquer en une phrase pourquoi ce morceau appartient à
 
 Règles pour les chroniques :
 Chaque chronique doit être écrite pour être dite à voix haute.
-Objectif antenne rapide : 36 à 48 mots par chronique.
-Deux ou trois phrases maximum.
+Objectif : 80 à 120 mots par chronique, soit 30 à 45 secondes d’antenne.
+Trois à cinq phrases.
 La première phrase doit être courte, moins de 14 mots si possible.
 Le rythme doit être naturel, presque conversationnel, avec de l’élan.
 La première phrase doit accrocher vite, sans préambule.
@@ -1168,6 +1355,45 @@ function isValidEpisode(episode) {
   );
 }
 
+function validateEpisodeContentIssues(episode) {
+  const FORBIDDEN = [
+    "notamment", "presque", "semble", "peut-être", "environ",
+    "généralement", "il est important de noter", "voici", "bien sûr",
+    "en résumé", "il convient de noter", "incroyable", "légendaire",
+    "emblématique", "c'est une ambiance", "on continue le voyage",
+  ];
+  const issues = [];
+
+  episode.tracks.forEach((track, i) => {
+    const label = `${track.artist} — ${track.title}`;
+    const words = countWords(track.chronicle);
+
+    if (words < 60) {
+      issues.push(`Chronique ${i + 1} (${label}): trop courte (${words} mots, minimum 80).`);
+    } else if (words > 150) {
+      issues.push(`Chronique ${i + 1} (${label}): trop longue (${words} mots, maximum 120).`);
+    }
+
+    const found = FORBIDDEN.filter((w) => track.chronicle.toLowerCase().includes(w));
+    if (found.length) {
+      issues.push(`Chronique ${i + 1} (${label}): mots interdits — ${found.join(", ")}.`);
+    }
+
+    if (track.transition && countWords(track.transition) > 18) {
+      issues.push(`Transition ${i + 1} (${label}): trop longue (${countWords(track.transition)} mots, maximum 18).`);
+    }
+  });
+
+  return issues;
+}
+
+function countWords(text) {
+  return String(text || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
 function isSeedOpeningTrack(episode, seed) {
   const firstTrack = episode?.tracks?.[0];
 
@@ -1245,8 +1471,15 @@ function getAiUserMessage(error) {
     return "La clé IA est invalide. Vérifie la clé du fournisseur configuré dans Railway.";
   }
 
-  if (lowerMessage.includes("rate limit") || lowerMessage.includes("429")) {
-    return "Le fournisseur IA limite temporairement les requêtes. Réessaie dans quelques secondes.";
+  if (
+    lowerMessage.includes("rate limit") ||
+    lowerMessage.includes("429") ||
+    lowerMessage.includes("503") ||
+    lowerMessage.includes("high demand") ||
+    lowerMessage.includes("overloaded") ||
+    lowerMessage.includes("capacity")
+  ) {
+    return "Le fournisseur IA est surchargé en ce moment. Réessaie dans quelques secondes.";
   }
 
   if (
