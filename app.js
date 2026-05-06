@@ -20,7 +20,6 @@ const els = {
   searchForm: document.querySelector("#search-form"),
   searchInput: document.querySelector("#search-input"),
   searchButton: document.querySelector("#search-form button"),
-  suggestions: document.querySelectorAll("[data-query]"),
   searchMessage: document.querySelector("#search-message"),
   results: document.querySelector("#results"),
   loadingMessage: document.querySelector("#loading-message"),
@@ -79,12 +78,6 @@ els.searchInput.addEventListener("input", () => {
   }, 300);
 });
 
-els.suggestions.forEach((button) => {
-  button.addEventListener("click", () => {
-    els.searchInput.value = button.dataset.query || "";
-    searchTracks(els.searchInput.value);
-  });
-});
 
 els.pauseButton.addEventListener("click", () => {
   togglePause();

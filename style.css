@@ -1,25 +1,25 @@
 :root {
-  color-scheme: light;
-  --background: #fbf8f1;
-  --surface: #fffaf1;
-  --surface-soft: #efe6d8;
-  --surface-strong: #11100e;
-  --text: #11100e;
-  --text-invert: #f7f3ea;
-  --muted: #5e554b;
-  --faint: #8a8074;
-  --line: rgba(17, 16, 14, 0.14);
-  --accent: #ff4b0b;
-  --accent-strong: #ff6a22;
-  --signal: #0f6b72;
-  --signal-soft: rgba(15, 107, 114, 0.1);
-  --wood: #3b271d;
-  --wood-deep: #231711;
-  --ink: #060504;
-  --paper: #f6f0e5;
-  --shadow-wash: #bdb6aa;
-  --danger: #b83c28;
-  --shadow: rgba(17, 16, 14, 0.18);
+  color-scheme: dark;
+  --background: #000000;
+  --surface: #080808;
+  --surface-soft: #111111;
+  --surface-strong: #ffffff;
+  --text: #ffffff;
+  --text-invert: #000000;
+  --muted: #a7a7a7;
+  --faint: #5f5f5f;
+  --line: rgba(255, 255, 255, 0.16);
+  --accent: #ffffff;
+  --accent-strong: #ffffff;
+  --signal: #ffffff;
+  --signal-soft: rgba(255, 255, 255, 0.12);
+  --wood: #000000;
+  --wood-deep: #000000;
+  --ink: #ffffff;
+  --paper: #000000;
+  --shadow-wash: #000000;
+  --danger: #ffffff;
+  --shadow: rgba(0, 0, 0, 0.72);
 }
 
 * {
@@ -110,7 +110,12 @@ button:disabled {
   max-width: 100%;
   align-items: center;
   justify-content: center;
-  color: var(--text);
+  color: #ffffff;
+  font-family:
+    "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman",
+    serif;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .brand-logo--home {
@@ -119,14 +124,17 @@ button:disabled {
 }
 
 .brand-logo--compact {
-  width: 142px;
+  width: auto;
   justify-content: start;
-  margin-bottom: 18px;
+  margin: 0 0 18px;
+  font-size: 26px;
 }
 
 .brand-logo--status {
-  width: min(240px, 72vw);
+  width: auto;
   margin: 0 auto 34px;
+  font-size: 44px;
+  text-align: center;
 }
 
 .brand-logo-image {
@@ -154,6 +162,15 @@ h1 {
   font-weight: 700;
   line-height: 0.82;
   letter-spacing: 0;
+}
+
+.station-line {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
 }
 
 .hero-copy {
@@ -244,7 +261,6 @@ h1 {
   color: var(--danger);
 }
 
-.help,
 .message {
   grid-column: 1 / -1;
   justify-self: center;
