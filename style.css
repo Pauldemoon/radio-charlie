@@ -685,6 +685,15 @@ button:focus-visible {
   letter-spacing: 0;
 }
 
+.role {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
 .deezer-link {
   display: inline-flex;
   min-height: 36px;
