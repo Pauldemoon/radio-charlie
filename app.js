@@ -1,7 +1,7 @@
 const DEEZER_SEARCH_URL = "https://api.deezer.com/search";
 const SPEECH_TIMEOUT_MS = 20000;
 const BROWSER_SPEECH_RATE = 1.12;
-const MAX_SPOKEN_WORDS = 52;
+const MAX_SPOKEN_WORDS = 130;
 const FALLBACK_COVER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Crect width='600' height='600' fill='%23020817'/%3E%3Ccircle cx='300' cy='300' r='190' fill='%23f2b51d' fill-opacity='.16'/%3E%3Ccircle cx='300' cy='300' r='78' fill='%23f2b51d' fill-opacity='.42'/%3E%3C/svg%3E";
 
@@ -164,6 +164,7 @@ function renderSearchResults(tracks) {
 }
 
 async function startEpisode(seedTrack) {
+  unlockAudio();
   const runId = resetRun();
   showLoading();
 
@@ -484,7 +485,7 @@ function prepareOnAirText(text) {
     selected.push(sentenceText);
     wordCount += sentenceWords;
 
-    if (wordCount >= 34) {
+    if (wordCount >= 120) {
       break;
     }
   }
@@ -909,6 +910,14 @@ function resetPauseControl(isPaused, isDisabled = false) {
   els.pauseButton.disabled = isDisabled;
   els.pauseButton.textContent = isPaused ? "Reprendre" : "Pause";
   els.pauseButton.setAttribute("aria-pressed", String(isPaused));
+}
+
+function unlockAudio() {
+  const audio = new Audio();
+  audio.volume = 0;
+  audio.src =
+    "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+  audio.play().catch(() => {});
 }
 
 function wait(ms) {
