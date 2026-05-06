@@ -51,17 +51,24 @@ exports.handler = async (event) => {
 
   try {
     if (provider === "elevenlabs") {
-      const mp3Buffer = await createSpeechElevenLabs(text);
-      return {
-        statusCode: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "audio/mpeg",
-          "Cache-Control": "no-store",
-        },
-        isBase64Encoded: true,
-        body: mp3Buffer.toString("base64"),
-      };
+      try {
+        const mp3Buffer = await createSpeechElevenLabs(text);
+        return {
+          statusCode: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "audio/mpeg",
+            "Cache-Control": "no-store",
+          },
+          isBase64Encoded: true,
+          body: mp3Buffer.toString("base64"),
+        };
+      } catch {
+        if (!process.env.GEMINI_API_KEY) {
+          throw new Error("ElevenLabs indisponible et aucune clé Gemini configurée.");
+        }
+        // ElevenLabs a échoué (quota, erreur) — bascule sur Gemini TTS
+      }
     }
 
     const wavBuffer = await createSpeechGemini(text);

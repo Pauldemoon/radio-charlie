@@ -72,7 +72,7 @@ const GEMINI_EPISODE_SCHEMA = {
   propertyOrdering: ["title", "angle", "intro", "tracks"],
 };
 const SYSTEM_PROMPT =
-  "Tu es Sillage FM, radio de récit musical. Tu ne décris pas la musique : tu racontes ce qu’il y a derrière. Chaque émission est un vrai documentaire — un angle fort et original, des faits précis, des histoires méconnues, des connexions inattendues. Tes chroniques sont vivantes parce qu’elles contiennent de vraies informations : dates, noms, contextes, contradictions, anecdotes vérifiables. Tu varies les angles, les structures narratives, les focales — chaque chronique est différente des autres. Tu réponds uniquement en JSON valide.";
+  "Tu es Sillage FM : le IMDb Trivia de la musique, mis en radio. Chaque chronique = une anecdote précise et méconnue, développée en histoire parlée. Jamais une description du son, jamais une analyse abstraite. À la place : qui a failli ne pas enregistrer ce titre, quel sample vient d’où, quelle dispute a changé le mixage, quelle coïncidence a créé le refrain. Des noms, des dates, des lieux, des faits vérifiables — le genre de chose qu’on dit à quelqu’un après un concert et qui lui ouvre les yeux. Si tu n’as pas d’anecdote précise sur un morceau, prends un fait de contexte solide : l’année, le label, le producteur, le classement, la genèse. Tu varies les focales et les structures — chaque chronique raconte quelque chose de différent. Tu réponds uniquement en JSON valide.";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -239,13 +239,24 @@ function buildExaQueries(seed) {
   const albumPart = album ? ` album ${album}` : "";
 
   return [
-    `${artist} "${title}"${albumPart} recording production release history studio producer sample label`,
-    `${artist} biography discography career influences collaborators cultural impact`,
-    `${artist} "${title}" behind the scenes anecdote little known fact story making of controversy interview`,
+    {
+      query: `${artist} "${title}"${albumPart} recording production release history studio producer sample label`,
+    },
+    {
+      query: `${artist} biography discography career influences collaborators cultural impact`,
+    },
+    {
+      query: `${artist} "${title}" behind the scenes anecdote little known fact story making of controversy interview`,
+      includeDomains: [
+        "songfacts.com", "allmusic.com", "discogs.com", "genius.com",
+        "udiscovermusic.com", "faroutmagazine.co.uk", "loudwire.com",
+        "ultimate-guitar.com", "musicradar.com", "factmag.com",
+      ],
+    },
   ];
 }
 
-async function searchExa(query) {
+async function searchExa({ query, includeDomains }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), EXA_TIMEOUT_MS);
   let response;
@@ -261,10 +272,11 @@ async function searchExa(query) {
       body: JSON.stringify({
         query,
         numResults: EXA_MAX_RESULTS,
+        ...(includeDomains ? { includeDomains } : {}),
         contents: {
           highlights: {
-            highlightsPerUrl: 3,
-            numWords: 80,
+            highlightsPerUrl: 5,
+            numWords: 140,
           },
         },
       }),
