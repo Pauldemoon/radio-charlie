@@ -7,10 +7,14 @@ const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const TAVILY_API_URL = process.env.TAVILY_API_URL || "https://api.tavily.com/search";
+const EXA_API_URL = "https://api.exa.ai/search";
 const AI_MAX_TOKENS = numberEnv("RADIO_CHARLIE_AI_MAX_TOKENS", 4500);
 const TAVILY_TIMEOUT_MS = numberEnv("TAVILY_TIMEOUT_MS", 8000);
 const TAVILY_MAX_RESULTS = clampNumber(numberEnv("TAVILY_MAX_RESULTS", 5), 1, 8);
 const TAVILY_CACHE_TTL_MS = numberEnv("TAVILY_CACHE_TTL_MS", 60 * 60 * 1000);
+const EXA_TIMEOUT_MS = numberEnv("EXA_TIMEOUT_MS", 8000);
+const EXA_MAX_RESULTS = clampNumber(numberEnv("EXA_MAX_RESULTS", 5), 1, 8);
+const EXA_CACHE_TTL_MS = numberEnv("EXA_CACHE_TTL_MS", 60 * 60 * 1000);
 const MAX_SEED_FIELD_LENGTH = 160;
 const PLAYLIST_ROLES = [
   "opener",
@@ -173,7 +177,10 @@ async function createAiEpisode(seed) {
 }
 
 async function createEditorialWebContext(seed) {
-  if (!isTavilyEnabled()) {
+  const useExa = isExaEnabled();
+  const useTavily = !useExa && isTavilyEnabled();
+
+  if (!useExa && !useTavily) {
     return "";
   }
 
@@ -186,15 +193,25 @@ async function createEditorialWebContext(seed) {
   }
 
   try {
-    const queries = buildTavilyQueries(seed);
-    const payloads = await Promise.all(
-      queries.map((q) => searchTavily(q).catch(() => null)),
-    );
-    const context = formatMultiTavilyContext(payloads, seed);
+    let context;
+
+    if (useExa) {
+      const queries = buildExaQueries(seed);
+      const payloads = await Promise.all(
+        queries.map((q) => searchExa(q).catch(() => null)),
+      );
+      context = formatExaContext(payloads, seed);
+    } else {
+      const queries = buildTavilyQueries(seed);
+      const payloads = await Promise.all(
+        queries.map((q) => searchTavily(q).catch(() => null)),
+      );
+      context = formatMultiTavilyContext(payloads, seed);
+    }
 
     tavilyCache.set(cacheKey, {
       context,
-      expiresAt: now + TAVILY_CACHE_TTL_MS,
+      expiresAt: now + (useExa ? EXA_CACHE_TTL_MS : TAVILY_CACHE_TTL_MS),
     });
     cleanupTavilyCache(now);
 
@@ -203,15 +220,119 @@ async function createEditorialWebContext(seed) {
     logTavilyError(error);
 
     if (process.env.RADIO_CHARLIE_STRICT_WEB === "true") {
-      throw new Error(`Tavily indisponible: ${sanitizeErrorMessage(error)}`);
+      throw new Error(`Recherche web indisponible: ${sanitizeErrorMessage(error)}`);
     }
 
     return "";
   }
 }
 
+function isExaEnabled() {
+  return Boolean(process.env.EXA_API_KEY);
+}
+
 function isTavilyEnabled() {
   return process.env.TAVILY_ENABLED !== "false" && Boolean(process.env.TAVILY_API_KEY);
+}
+
+function buildExaQueries(seed) {
+  const { artist, title, album } = seed;
+  const albumPart = album ? ` album ${album}` : "";
+
+  return [
+    `${artist} "${title}"${albumPart} recording production release history studio producer sample label`,
+    `${artist} biography discography career influences collaborators cultural impact`,
+  ];
+}
+
+async function searchExa(query) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EXA_TIMEOUT_MS);
+  let response;
+
+  try {
+    response = await fetch(EXA_API_URL, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "x-api-key": process.env.EXA_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query,
+        numResults: EXA_MAX_RESULTS,
+        contents: {
+          highlights: {
+            highlightsPerUrl: 3,
+            numWords: 80,
+          },
+        },
+      }),
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(`Exa a dépassé ${EXA_TIMEOUT_MS}ms.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const responseText = await response.text().catch(() => "");
+  const payload = parseJsonSafely(responseText);
+
+  if (!response.ok) {
+    const apiMessage =
+      payload?.error ||
+      payload?.message ||
+      responseText.slice(0, 500) ||
+      "Réponse vide.";
+    throw new Error(`Exa ${response.status}: ${apiMessage}`);
+  }
+
+  return payload || {};
+}
+
+function formatExaContext(payloads, seed) {
+  const sectionLabels = [
+    `Titre "${seed.artist} — ${seed.title}" : production, enregistrement, sortie, sample, label`,
+    `Artiste "${seed.artist}" : biographie, scène, collaborateurs, anecdotes, impact culturel`,
+  ];
+
+  const sections = payloads
+    .map((payload, i) => {
+      if (!payload) return null;
+
+      const results = Array.isArray(payload?.results) ? payload.results : [];
+      const lines = results
+        .filter((r) => r?.title && (Array.isArray(r?.highlights) ? r.highlights.length : r?.text))
+        .slice(0, EXA_MAX_RESULTS)
+        .map((r, j) => {
+          const title = cleanText(r.title).slice(0, 120);
+          const content = Array.isArray(r.highlights)
+            ? r.highlights.map((h) => cleanText(h)).join(" ").slice(0, 600)
+            : cleanText(r.text || "").slice(0, 600);
+          return `  ${j + 1}. ${title} — ${content}`;
+        });
+
+      if (!lines.length) return null;
+
+      return `### ${sectionLabels[i] || `Recherche ${i + 1}`}\n${lines.join("\n")}`;
+    })
+    .filter(Boolean);
+
+  if (!sections.length) {
+    return "";
+  }
+
+  return `
+Dossier de recherche éditoriale pour "${seed.artist} — ${seed.title}".
+Extrais les faits précis : dates, noms, chiffres, anecdotes vérifiables, contexte de production.
+Ne cite pas les URL. Ne récite pas ces sources — transforme-les en matière éditoriale.
+Si une information ne figure pas ici et que tu n'en es pas sûr, ne l'invente pas.
+
+${sections.join("\n\n")}
+`.trim();
 }
 
 function buildTavilyQueries(seed) {
