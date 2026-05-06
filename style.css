@@ -34,7 +34,8 @@ body {
   min-height: 100%;
   margin: 0;
   font-family:
-    "Avenir Next", Avenir, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    "Barlow", "Avenir Next", Avenir, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 600;
   background:
     radial-gradient(circle at 50% 8%, rgba(242, 181, 29, 0.12), transparent 26%),
     radial-gradient(circle at 82% 58%, rgba(242, 181, 29, 0.08), transparent 28%),
@@ -146,18 +147,14 @@ button:disabled {
 }
 
 .brand-logo--compact {
-  width: auto;
+  width: min(200px, 50vw);
   justify-content: start;
   margin: 0 0 18px;
-  font-size: 34px;
-  line-height: 0.85;
 }
 
 .brand-logo--status {
-  width: auto;
+  width: min(320px, 68vw);
   margin: 0 auto 34px;
-  font-size: clamp(48px, 9vw, 96px);
-  line-height: 0.78;
   text-align: center;
 }
 

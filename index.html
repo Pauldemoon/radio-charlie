@@ -8,6 +8,9 @@
       content="Sillage FM génère un podcast musical intelligent à partir d'un morceau."
     >
     <title>Sillage FM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./style.css">
   </head>
   <body>
@@ -36,7 +39,9 @@
       </section>
 
       <section id="loading-screen" class="screen loading-screen" aria-label="Chargement">
-        <p class="brand-logo brand-logo--status">Sillage FM</p>
+        <p class="brand-logo brand-logo--status" aria-label="Sillage FM">
+          <img class="brand-logo-image" src="./assets/sillage-logo.png" alt="Sillage FM">
+        </p>
         <div class="fm-tuner" aria-hidden="true">
           <div class="fm-band">
             <span class="fm-glow"></span>
@@ -60,7 +65,9 @@
       <section id="radio-screen" class="screen radio-screen" aria-label="Podcast">
         <header class="radio-header">
           <div>
-            <p class="brand-logo brand-logo--compact">Sillage FM</p>
+            <p class="brand-logo brand-logo--compact" aria-label="Sillage FM">
+              <img class="brand-logo-image" src="./assets/sillage-logo.png" alt="Sillage FM">
+            </p>
             <h2 id="radio-title">Podcast</h2>
           </div>
           <div class="radio-actions">
@@ -106,7 +113,9 @@
       </section>
 
       <section id="end-screen" class="screen end-screen" aria-label="Fin">
-        <p class="brand-logo brand-logo--status">Sillage FM</p>
+        <p class="brand-logo brand-logo--status" aria-label="Sillage FM">
+          <img class="brand-logo-image" src="./assets/sillage-logo.png" alt="Sillage FM">
+        </p>
         <h2>Fin du podcast.</h2>
         <button id="restart-button" class="primary-button" type="button">
           Relancer avec un autre morceau
@@ -114,7 +123,9 @@
       </section>
 
       <section id="error-screen" class="screen error-screen" aria-label="Erreur">
-        <p class="brand-logo brand-logo--status">Sillage FM</p>
+        <p class="brand-logo brand-logo--status" aria-label="Sillage FM">
+          <img class="brand-logo-image" src="./assets/sillage-logo.png" alt="Sillage FM">
+        </p>
         <h2>Quelque chose a mal tourné.</h2>
         <p id="error-message" class="error-detail"></p>
         <div class="error-actions">
