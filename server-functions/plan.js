@@ -8,7 +8,7 @@ const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const TAVILY_API_URL = process.env.TAVILY_API_URL || "https://api.tavily.com/search";
 const EXA_API_URL = "https://api.exa.ai/search";
-const AI_MAX_TOKENS = numberEnv("RADIO_CHARLIE_AI_MAX_TOKENS", 4500);
+const AI_MAX_TOKENS = numberEnv("RADIO_CHARLIE_AI_MAX_TOKENS", 6500);
 const TAVILY_TIMEOUT_MS = numberEnv("TAVILY_TIMEOUT_MS", 8000);
 const TAVILY_MAX_RESULTS = clampNumber(numberEnv("TAVILY_MAX_RESULTS", 5), 1, 8);
 const TAVILY_CACHE_TTL_MS = numberEnv("TAVILY_CACHE_TTL_MS", 60 * 60 * 1000);
@@ -1384,13 +1384,17 @@ Ne pas paraphraser la chronique suivante : la transition doit ajouter un lien, p
 Exemple acceptable : "C’est cette rupture que Jay-Z avait anticipée trois ans plus tôt."
 Exemple à éviter : "Maintenant, voici un autre morceau qui illustre l’angle de l’émission."
 
-Format de sortie :
-Retourne uniquement du JSON valide.
-N’ajoute aucun commentaire, aucun markdown, aucun texte hors JSON.
-Dans les valeurs textuelles du JSON, n’utilise jamais le caractère guillemet double.
-Ne cite pas de paroles exactes entre guillemets.
-Si tu dois rapporter une idée de paroles, paraphrase sans guillemets.
-Évite les retours à la ligne à l’intérieur des champs texte.
+Format de sortie — RÈGLE CRITIQUE pour le JSON :
+Retourne uniquement du JSON valide. Aucun commentaire, aucun markdown, aucun texte hors JSON.
+
+Le caractère " (guillemet double) est INTERDIT à l'intérieur des valeurs de chaînes.
+Si tu dois citer quelque chose, utilise des guillemets français « » ou des apostrophes simples.
+Pour rapporter une idée de paroles, paraphrase sans aucun guillemet.
+Pour les noms cités (artiste, label, studio), pas de guillemets — écris-les directement.
+
+Aucun retour à la ligne à l'intérieur des champs texte (chronicle, intro, etc.).
+
+Avant de retourner le JSON, vérifie mentalement chaque chronique : compte les " dans le texte. Si un " apparaît dans une valeur, remplace-le par « ou par rien.
 Le champ "intro" est une ouverture antenne parlée de 28 à 42 mots. C'est le HOOK de l'émission. Elle ouvre sur la scène la plus tendue ou le fait le plus surprenant de toute l'histoire, et elle pose implicitement la QUESTION CENTRALE à laquelle l'épisode va répondre. Pas de résumé, pas de "aujourd'hui dans Sillage on parle de…", pas de liste de ce qui va suivre. L'auditeur doit être incapable de couper après ces 30 mots.
 
 Schéma :
@@ -1442,15 +1446,90 @@ function parseEpisode(content) {
 
   try {
     return JSON.parse(cleanContent);
-  } catch (error) {
+  } catch (firstError) {
     const jsonObject = extractJsonObject(cleanContent);
 
     if (jsonObject) {
-      return JSON.parse(jsonObject);
+      try {
+        return JSON.parse(jsonObject);
+      } catch {
+        // tombe vers la réparation tolérante
+      }
     }
 
-    throw error;
+    const repaired = repairLooseJson(jsonObject || cleanContent);
+
+    if (repaired) {
+      try {
+        return JSON.parse(repaired);
+      } catch {
+        // dernière chance
+      }
+    }
+
+    throw firstError;
   }
+}
+
+// Tente de réparer les erreurs JSON courantes générées par les LLM :
+// - virgules traînantes
+// - guillemets doubles non-échappés à l'intérieur des chaînes
+function repairLooseJson(content) {
+  if (!content) return "";
+
+  let result = content
+    // virgules traînantes avant } ou ]
+    .replace(/,(\s*[}\]])/g, "$1");
+
+  // Re-échappe les " orphelins à l'intérieur des chaînes.
+  // On parcourt caractère par caractère en suivant l'état "dans une chaîne".
+  // Un " est considéré orphelin si, à l'intérieur d'une chaîne, le caractère
+  // suivant n'est pas une virgule, deux-points, espace+virgule, ou } ] suivants.
+  let out = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < result.length; i += 1) {
+    const ch = result[i];
+
+    if (!inString) {
+      out += ch;
+      if (ch === "\"") inString = true;
+      continue;
+    }
+
+    if (escaped) {
+      out += ch;
+      escaped = false;
+      continue;
+    }
+
+    if (ch === "\\") {
+      out += ch;
+      escaped = true;
+      continue;
+    }
+
+    if (ch === "\"") {
+      // Regarde le prochain caractère non-blanc pour décider si c'est la fin de la chaîne
+      let j = i + 1;
+      while (j < result.length && /\s/.test(result[j])) j += 1;
+      const next = result[j];
+      // Fin légitime de chaîne : suivie de , : } ] ou EOF
+      if (next === undefined || next === "," || next === ":" || next === "}" || next === "]") {
+        out += ch;
+        inString = false;
+      } else {
+        // " orphelin à l'intérieur d'une chaîne — on l'échappe
+        out += "\\\"";
+      }
+      continue;
+    }
+
+    out += ch;
+  }
+
+  return out;
 }
 
 function parseJsonSafely(content) {
