@@ -1,13 +1,14 @@
 const express = require("express");
 const path = require("path");
 
-const planFunction = require("./netlify/functions/plan");
-const speakFunction = require("./netlify/functions/speak");
-const statusFunction = require("./netlify/functions/status");
+const planFunction = require("./server-functions/plan");
+const speakFunction = require("./server-functions/speak");
+const statusFunction = require("./server-functions/status");
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
-const requestTimeoutMs = Number(process.env.REQUEST_TIMEOUT_MS || 15 * 60 * 1000);
+const requestTimeoutMs = numberEnv("REQUEST_TIMEOUT_MS", 15 * 60 * 1000);
+const bodyLimit = process.env.SILLAGE_BODY_LIMIT || "1mb";
 
 app.use((req, res, next) => {
   req.setTimeout(requestTimeoutMs);
@@ -15,15 +16,15 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: bodyLimit }));
 
 app.get("/health", (req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, service: "sillage-fm" });
 });
 
-app.post(["/plan", "/.netlify/functions/plan"], runFunction(planFunction.handler));
-app.post(["/speak", "/.netlify/functions/speak"], runFunction(speakFunction.handler));
-app.get(["/status", "/.netlify/functions/status"], runFunction(statusFunction.handler));
+app.post(["/api/plan", "/plan"], runFunction(planFunction.handler));
+app.post(["/api/speak", "/speak"], runFunction(speakFunction.handler));
+app.get(["/api/status", "/status"], runFunction(statusFunction.handler));
 
 app.use(express.static(__dirname));
 
@@ -32,13 +33,13 @@ app.get("*", (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Radio Charlie API listening on port ${port}`);
+  console.log(`Sillage FM API listening on port ${port}`);
 });
 
 function runFunction(handler) {
   return async (req, res) => {
     try {
-      const result = await handler(toNetlifyEvent(req));
+      const result = await handler(toFunctionEvent(req));
       sendFunctionResult(res, result);
     } catch (error) {
       res.status(500).json({
@@ -49,7 +50,7 @@ function runFunction(handler) {
   };
 }
 
-function toNetlifyEvent(req) {
+function toFunctionEvent(req) {
   return {
     httpMethod: req.method,
     headers: req.headers,
@@ -76,4 +77,9 @@ function sendFunctionResult(res, result) {
   }
 
   res.send(result?.body || "");
+}
+
+function numberEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) ? value : fallback;
 }

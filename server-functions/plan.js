@@ -4,12 +4,24 @@ const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 const TAVILY_API_URL = process.env.TAVILY_API_URL || "https://api.tavily.com/search";
 const AI_MAX_TOKENS = numberEnv("RADIO_CHARLIE_AI_MAX_TOKENS", 4500);
 const TAVILY_TIMEOUT_MS = numberEnv("TAVILY_TIMEOUT_MS", 8000);
 const TAVILY_MAX_RESULTS = clampNumber(numberEnv("TAVILY_MAX_RESULTS", 5), 1, 8);
 const TAVILY_CACHE_TTL_MS = numberEnv("TAVILY_CACHE_TTL_MS", 60 * 60 * 1000);
 const MAX_SEED_FIELD_LENGTH = 160;
+const PLAYLIST_ROLES = [
+  "opener",
+  "origin",
+  "rupture",
+  "contrast",
+  "hidden influence",
+  "turning point",
+  "consequence",
+  "closing statement",
+];
 const tavilyCache = new Map();
 const EPISODE_SCHEMA = {
   type: "object",
@@ -37,6 +49,33 @@ const EPISODE_SCHEMA = {
       },
     },
   },
+};
+const GEMINI_EPISODE_SCHEMA = {
+  type: "OBJECT",
+  required: ["title", "angle", "intro", "tracks"],
+  properties: {
+    title: { type: "STRING" },
+    angle: { type: "STRING" },
+    intro: { type: "STRING" },
+    tracks: {
+      type: "ARRAY",
+      minItems: 6,
+      maxItems: 8,
+      items: {
+        type: "OBJECT",
+        required: ["artist", "title", "reason", "chronicle"],
+        properties: {
+          artist: { type: "STRING" },
+          title: { type: "STRING" },
+          reason: { type: "STRING" },
+          chronicle: { type: "STRING" },
+          transition: { type: "STRING" },
+        },
+        propertyOrdering: ["artist", "title", "reason", "chronicle", "transition"],
+      },
+    },
+  },
+  propertyOrdering: ["title", "angle", "intro", "tracks"],
 };
 const SYSTEM_PROMPT =
   "Tu es Sillage FM. Tu construis des portraits d’artistes : une émission = un artiste, raconté à travers ses chansons comme un documentaire sonore. Ta seule valeur : dire aux auditeurs ce qu’ils ne savaient pas. Pas de descriptions, pas d’ambiances, pas d’adjectifs creux : des faits, des dates, des noms, des chiffres, des anecdotes vérifiables sur CET artiste. Tu réponds uniquement en JSON valide.";
@@ -124,6 +163,10 @@ async function createAiEpisode(seed) {
 
   if (provider === "claude") {
     return createClaudeEpisode(seed, webContext);
+  }
+
+  if (provider === "gemini") {
+    return createGeminiEpisode(seed, webContext);
   }
 
   return createFreeEpisode(seed);
@@ -309,6 +352,10 @@ function getAiProvider() {
     return "openai";
   }
 
+  if (process.env.GEMINI_API_KEY) {
+    return "gemini";
+  }
+
   if (process.env.ANTHROPIC_API_KEY) {
     return "claude";
   }
@@ -323,8 +370,16 @@ function normalizeAiProvider(value) {
     return "";
   }
 
-  if (["deepseek", "openai", "claude", "anthropic", "local"].includes(provider)) {
-    return provider === "anthropic" ? "claude" : provider;
+  if (provider === "anthropic") {
+    return "claude";
+  }
+
+  if (provider === "google") {
+    return "gemini";
+  }
+
+  if (["deepseek", "openai", "claude", "gemini", "local"].includes(provider)) {
+    return provider;
   }
 
   throw new Error(`Fournisseur IA inconnu : ${value}.`);
@@ -595,6 +650,109 @@ function normalizeAssistantContent(value) {
   return "";
 }
 
+async function createGeminiEpisode(seed, webContext) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("Configuration Gemini manquante.");
+  }
+
+  const response = await fetch(
+    `${GEMINI_API_URL}/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": process.env.GEMINI_API_KEY,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: [SYSTEM_PROMPT, buildPrompt(seed, webContext)].join("\n\n"),
+              },
+            ],
+          },
+        ],
+        generationConfig: getGeminiGenerationConfig(),
+      }),
+    },
+  );
+
+  const responseText = await response.text().catch(() => "");
+  const payload = parseJsonSafely(responseText);
+
+  if (!response.ok) {
+    const apiMessage =
+      payload?.error?.message ||
+      payload?.message ||
+      responseText.slice(0, 600) ||
+      "Réponse vide.";
+    throw new Error(`Gemini ${response.status}: ${apiMessage}`);
+  }
+
+  const content = getGeminiContent(payload, responseText);
+  const episode = normalizeEpisode(parseEpisode(content));
+
+  if (!isValidEpisode(episode) || !isSeedOpeningTrack(episode, seed)) {
+    throw new Error("Format d'émission Gemini invalide.");
+  }
+
+  return episode;
+}
+
+function getGeminiGenerationConfig() {
+  return {
+    temperature: 0.72,
+    maxOutputTokens: AI_MAX_TOKENS,
+    responseMimeType: "application/json",
+    responseSchema: GEMINI_EPISODE_SCHEMA,
+    thinkingConfig: getGeminiThinkingConfig(),
+  };
+}
+
+function getGeminiThinkingConfig() {
+  const model = GEMINI_MODEL.toLowerCase();
+
+  if (model.includes("gemini-3")) {
+    const thinkingLevel = cleanText(process.env.GEMINI_THINKING_LEVEL).toLowerCase() || "low";
+
+    if (["minimal", "low", "medium", "high"].includes(thinkingLevel)) {
+      return { thinkingLevel };
+    }
+
+    return { thinkingLevel: "low" };
+  }
+
+  const rawBudget = cleanText(process.env.GEMINI_THINKING_BUDGET);
+
+  if (!rawBudget) {
+    return {};
+  }
+
+  const thinkingBudget = Number(rawBudget);
+
+  if (!Number.isInteger(thinkingBudget)) {
+    return {};
+  }
+
+  return { thinkingBudget };
+}
+
+function getGeminiContent(payload, responseText) {
+  const parts = payload?.candidates?.[0]?.content?.parts || [];
+  const content = parts
+    .map((part) => part?.text || "")
+    .join("\n")
+    .trim();
+
+  if (content) {
+    return content;
+  }
+
+  const reason = payload?.candidates?.[0]?.finishReason || "absent";
+  throw new Error(`Gemini réponse finale vide: finishReason=${reason}; response_preview=${String(responseText || "").slice(0, 280)}`);
+}
 async function createClaudeEpisode(seed, webContext) {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error("Configuration Claude manquante.");
@@ -1031,7 +1189,7 @@ function getAiUserMessage(error) {
     lowerMessage.includes("reasoning_content") ||
     lowerMessage.includes("reasoning_chars")
   ) {
-    return "DeepSeek a produit du raisonnement mais pas la réponse finale. Mets DEEPSEEK_THINKING=disabled dans Railway, puis redéploie.";
+    return "Le fournisseur IA a produit du raisonnement mais pas la réponse finale. Réduis le niveau de raisonnement, puis redéploie.";
   }
 
   if (
@@ -1056,7 +1214,7 @@ function getAiUserMessage(error) {
     lowerMessage.includes("response_format") ||
     lowerMessage.includes("thinking")
   ) {
-    return "DeepSeek refuse la requête actuelle. On doit ajuster le modèle ou les paramètres envoyés.";
+    return "Le fournisseur IA refuse la requête actuelle. On doit ajuster le modèle ou les paramètres envoyés.";
   }
 
   if (
@@ -1068,7 +1226,7 @@ function getAiUserMessage(error) {
   }
 
   if (lowerMessage.includes("insufficient_system_resource")) {
-    return "DeepSeek est temporairement saturé. Réessaie dans quelques instants.";
+    return "Le fournisseur IA est temporairement saturé. Réessaie dans quelques instants.";
   }
 
   if (
@@ -1117,6 +1275,10 @@ function getAiModelName(provider) {
 
   if (provider === "claude") {
     return ANTHROPIC_MODEL;
+  }
+
+  if (provider === "gemini") {
+    return GEMINI_MODEL;
   }
 
   return "local";
