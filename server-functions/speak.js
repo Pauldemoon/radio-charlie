@@ -77,7 +77,7 @@ exports.handler = async (event) => {
   } catch (error) {
     return json(502, {
       error: "La synthèse vocale ne répond pas pour le moment.",
-      detail: process.env.NODE_ENV === "development" ? error.message : undefined,
+      detail: process.env.RADIO_CHARLIE_DEBUG_AI === "true" ? error.message : undefined,
     });
   }
 };

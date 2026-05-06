@@ -1193,7 +1193,8 @@ Préfère :
 Règles pour la playlist :
 - 8 titres au total ;
 - le titre 1 doit être exactement le morceau sélectionné : même artiste, même titre ;
-- les autres titres doivent servir le récit : morceaux du même artiste, influences, collaborations, contemporains, héritiers, ou morceaux d’une même scène selon l’angle choisi ;
+- maximum 2 autres morceaux du même artiste que le titre 1 — les 5 restants doivent être d’artistes différents ;
+- les autres titres doivent servir le récit : influences, collaborations, contemporains, héritiers, ou morceaux d’une même scène selon l’angle choisi ;
 - la playlist doit tracer un ARC NARRATIF lisible — chaque morceau est un chapitre, pas une illustration de genre ;
 - la cohérence est narrative, pas musicale : deux morceaux peuvent sonner différemment s’ils racontent le même fil ;
 - évite les titres sans lien avec le récit, même s’ils sont du même genre ou de la même époque ;
