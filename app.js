@@ -3,7 +3,7 @@ const SPEECH_TIMEOUT_MS = 5500;
 const BROWSER_SPEECH_RATE = 1.12;
 const MAX_SPOKEN_WORDS = 52;
 const FALLBACK_COVER =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Crect width='600' height='600' fill='%23141312'/%3E%3Ccircle cx='300' cy='300' r='190' fill='%23d8b36a' fill-opacity='.16'/%3E%3Ccircle cx='300' cy='300' r='78' fill='%23d8b36a' fill-opacity='.42'/%3E%3C/svg%3E";
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Crect width='600' height='600' fill='%23020817'/%3E%3Ccircle cx='300' cy='300' r='190' fill='%23f2b51d' fill-opacity='.16'/%3E%3Ccircle cx='300' cy='300' r='78' fill='%23f2b51d' fill-opacity='.42'/%3E%3C/svg%3E";
 
 const loadingMessages = [
   "Sillage prépare l’émission…",
