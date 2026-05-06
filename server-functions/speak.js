@@ -8,6 +8,7 @@ const GEMINI_TTS_SAMPLE_RATE = 24000;
 const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "4UaMo6jttNwgmbtFfF1z";
 const ELEVENLABS_MODEL = process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2";
+const ELEVENLABS_SPEED = numberEnv("ELEVENLABS_SPEED", 1.15);
 const ELEVENLABS_TIMEOUT_MS = numberEnv("ELEVENLABS_TIMEOUT_MS", 15000);
 
 const corsHeaders = {
@@ -114,6 +115,7 @@ async function createSpeechElevenLabs(text) {
           similarity_boost: 0.8,
           style: 0.2,
           use_speaker_boost: true,
+          speed: ELEVENLABS_SPEED,
         },
       }),
     });
