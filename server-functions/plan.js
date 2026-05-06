@@ -888,6 +888,61 @@ Architecture recommandée pour chaque chronique :
 2. un fait concret vérifiable ou un détail de contexte ;
 3. une phrase qui relie ce fait au rôle du morceau dans l’émission.
 
+Répertoire de structures narratives :
+Pour chaque chronique, choisis une structure dans ce répertoire comme point de départ.
+La structure sert le récit — ne la nomme pas, ne l’explique pas : habite-la.
+
+L’Erreur Sacrée : un accident technique (larsen, voix qui déraille) que l’artiste garde et qui devient la signature du titre.
+Le Transfert : la chanson était destinée à une autre star qui l’a refusée ; l’artiste l’enregistre par dépit et décroche le tube de sa vie.
+La Fausse Piste : le public adore le morceau pour son énergie joyeuse, mais le texte cache une tragédie ou une noirceur absolue.
+Le Cobaye : l’artiste utilise un nouvel instrument ou une technologie qu’il ne maîtrise pas ; ce tâtonnement crée un son révolutionnaire.
+La Réponse Directe : un titre écrit pour répliquer à une attaque d’un autre groupe ou d’un critique — un clash musical qui entre dans l’histoire.
+Le Chant du Cygne : le groupe est sur le point de se séparer ; ils jettent leurs dernières forces dans un enregistrement final désespéré et sublime.
+L’Obsession : l’artiste passe des mois à peaufiner un seul détail ; tout le monde craque en studio, mais ce détail fait le succès.
+La Lettre Ouverte : le texte s’adresse directement à une personne réelle, souvent une célébrité ou un politicien, sans la nommer.
+Le Déguisement : l’artiste change radicalement de style ou de nom pour sortir un disque à l’opposé de son image habituelle.
+Le Vol Inconscient : une mélodie chipée à la radio ou dans un souvenir d’enfance, transformée jusqu’à devenir méconnaissable.
+La Séance de Nuit : la fatigue et l’isolement des heures creuses donnent au morceau une couleur magnétique et floue.
+Le Duel de Studio : la guerre entre l’ingénieur du son et l’artiste pour imposer une vision ; le disque est le résultat de ce conflit.
+L’Oublié de la Pochette : le musicien de studio qui improvise le solo légendaire pour quelques billets et disparaît.
+La Prophétie : les paroles décrivent un événement qui ne s’est pas encore produit, mais qui arrive quelques mois après la sortie.
+Le Retour de Flamme : un titre qui subit un échec total à sa parution, avant de devenir un hymne mondial grâce au cinéma ou à la publicité.
+L’Angle Mort : un détail technique ou sonore ignoré du grand public (un bruit de porte, une erreur de studio) qui devient la signature du titre.
+Le Duel des Charts : comment un "petit" morceau a terrassé un monstre sacré de l’époque.
+La Métamorphose : l’artiste dans un genre opposé juste avant le déclic — comment un rockeur finit par signer une ballade acoustique.
+Le Flash : la création d’un tube écrit en une heure, sur un coin de table, sous la pression d’un producteur.
+Le Paradoxe : une mélodie joyeuse sur un texte sombre — le public danse sur une tragédie personnelle.
+Le Snapshot Géographique : une adresse précise, une rue ou une chambre d’hôtel comme point de départ.
+La Note de Frais : une dette, une taxe ou une banqueroute qui force l’artiste à composer son plus grand succès pour survivre.
+L’Héritage Volé : partez d’un sample actuel pour remonter à la source originale oubliée et méconnue.
+Le Masque : l’artiste utilise un alter ego pour hurler une vérité qu’il n’ose pas dire en son nom propre.
+Le Déclic Anodin : un moment banal (une discussion avec un enfant, un titre de journal) qui devient le refrain d’une génération.
+La Séance Fantôme : une dispute entre musiciens ou un invité mystère qui change le destin du morceau.
+Le Pari Perdu : personne ne croyait au titre, sauf l’artiste qui a tout misé sur une intuition.
+Le Miroir Social : la chanson liée à un événement historique précis — l’artiste comme haut-parleur de son époque.
+La Dernière Chance : le groupe au bord de la rupture, le contrat qui va s’arrêter, l’ultime enregistrement qui sauve tout.
+L’Effet Papillon : un petit événement à l’autre bout du monde qui a fini par inspirer le titre.
+Le Vol à l’Arraché : l’artiste entend un riff dans un bar, le mémorise et le transforme avant que son auteur ne réalise son potentiel.
+Le Syndrome de l’Imposteur : l’artiste déteste le morceau, refuse de le sortir ; son entourage le force, créant malgré lui son plus grand classique.
+Le Duel Fratricide : deux membres enregistrent leurs parties séparément ; la tension entre les deux pistes crée une énergie que l’harmonie n’aurait jamais produite.
+Le Sample Fantôme : remonter d’un tube actuel à la boucle de trois secondes volée à un vieux disque de soul dont l’auteur vit dans l’anonymat.
+La Mise au Banni : le morceau interdit de radio ; le scandale provoque l’hystérie et propulse les ventes sous le manteau.
+L’Objet Unique : tout repose sur un instrument déniché aux puces ou un synthétiseur cassé que personne n’arrive à imiter.
+La Lettre de Rupture : le texte est un message direct laissé sur un répondeur, mis en musique sans modification.
+Le Naufrage Évité : la bande magnétique a failli être effacée ; le sauvetage in extremis quelques heures avant le pressage.
+L’Éclair de Génie Solitaire : tout le groupe est parti manger ; le chanteur reste seul, enregistre une prise unique brute qui devient le succès.
+Le Voyage Initiatique : l’artiste fuit sa ville, s’isole dans un pays étranger ; le morceau est le résultat de ce dépaysement.
+Le Témoin Oculaire : l’artiste au milieu d’une émeute ou d’une révolution — le texte est un reportage en direct.
+Le Message Codé : sous une chanson d’amour se cache une attaque politique ; l’artiste berne la censure avec un double sens.
+Le Choc des Générations : le morceau comme ligne de front entre anciens et nouveaux, qui définit "ringard" et "branché" du jour au lendemain.
+Le Scanner Social : la chanson décrit les vêtements, les habitudes et les galères d’un groupe social précis à un instant T.
+La Rupture Technologique : une invention permet de créer un son physiquement impossible à produire un an plus tôt.
+L’Inspiratrice Fantôme : qui est la personne réelle derrière le prénom du refrain — la muse, l’ex ou le politicien, et ce qu’il est devenu.
+Le Climat Politique : une loi, une taxe ou une guerre froide comme contexte ; sans cette tension, la chanson n’aurait aucune force.
+La Géographie Urbaine : le morceau appartient à un quartier précis — l’odeur du bitume, la fermeture des usines qui ont donné naissance au son.
+Le Slang et l’Argot : l’origine d’une expression culte du refrain qui a fini par entrer dans le dictionnaire.
+La Fin d’un Monde : le morceau sort juste avant une catastrophe ou un changement radical — la bande-son du dernier soir avant la tempête.
+
 Écris comme une voix radio qui sait couper.
 Pas comme une note de programme.
 Pas comme une critique de presse.
