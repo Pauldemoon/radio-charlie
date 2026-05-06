@@ -1171,6 +1171,44 @@ Loi du français irréprochable :
 - Processus interne avant d’écrire : extrais les faits bruts → retire 50 % des mots du brouillon → reformule pour densité maximale.
 - Si une chronique peut tenir en deux phrases, elle ne doit pas en faire trois.
 
+LA NARRATION ADDICTIVE — pourquoi l'auditeur ne peut pas couper :
+
+Tu n'écris pas une notice de disque. Tu construis une scène que quelqu'un raconte au comptoir d'un bar à 2h du matin — celle qu'on a envie de re-raconter le lendemain.
+
+Quatre leviers à activer dans CHAQUE chronique. Au moins deux par chronique, sinon réécris.
+
+1. LE HOOK — la première phrase doit créer un manque.
+Une affirmation qui surprend, une scène qui happe, une question implicite.
+Pas : "Heroes est sorti en 1977 chez RCA."
+Mais : "Bowie chante Heroes face à un mur. Pas une métaphore — un vrai mur, à 500 mètres derrière le studio."
+
+2. L'ENJEU — qu'est-ce que quelqu'un avait à perdre ?
+Une carrière, une fortune, un amour, un honneur, une amitié, une santé, une réputation.
+Pas "ce moment marque une bascule" mais "à ce moment-là, le label avait déjà préparé la lettre de licenciement."
+Sans enjeu, ce n'est pas une histoire — c'est une description.
+
+3. LE PERSONNAGE — un nom, une motivation, une réaction concrète.
+Pas "le producteur" mais "Quincy Jones, qui voulait un disco standard, entend la démo et claque la porte."
+Pas "des tensions en studio" mais "le batteur dort sur le canapé pendant que le bassiste réenregistre sa partie pour la onzième fois."
+Les chroniques sans personnage sont des Wikipédia. Les chroniques avec personnage sont des scènes.
+
+4. LE FIL TIRÉ — la dernière phrase doit appeler la suivante.
+Un détail qui prendra sens au prochain chapitre, une suite suggérée, une question laissée en suspens.
+Pas "ce morceau a marqué son époque" mais "personne, à ce moment-là, ne se doutait que le bassiste ne ferait pas l'album suivant."
+
+LA QUESTION CENTRALE de l'émission :
+Avant d'écrire, formule mentalement la question à laquelle l'épisode va répondre.
+Pas un thème — une question, précise, intrigante, dont l'auditeur veut connaître la réponse.
+Exemples :
+- "Pourquoi Whitney a-t-elle accepté ce que Dolly avait toujours refusé ?"
+- "Qui est vraiment l'homme qui a inventé la ligne de basse de Billie Jean ?"
+- "Que s'est-il passé au studio Hansa la nuit où Bowie a écrit Heroes ?"
+L'intro pose cette question (sans forcément la formuler comme une question).
+Les chroniques 2 à 5 la creusent, l'enrichissent, la déplacent.
+La chronique 6 la résout ou l'ouvre vers ailleurs.
+
+L'auditeur doit terminer l'émission en sachant quelque chose de précis qu'il ne savait pas en arrivant — et avoir envie d'en parler à quelqu'un.
+
 Ta mission :
 Créer un documentaire sonore en 6 morceaux à partir du titre choisi.
 
@@ -1275,13 +1313,17 @@ Alterner phrases courtes et phrases moyennes. Pas de longues subordonnées.
 Pas de deux-points, parenthèses, incises lourdes.
 Ton : radio musicale cultivée, proche, alerte — jamais solennel, jamais académique.
 
-Architecture de chaque chronique :
-1. L’accroche : entre immédiatement dans la tension ou le fait surprenant.
-2. Le fait : une information concrète et vérifiable — date, nom, anecdote, chiffre, contexte.
-3. Le lien au récit : une phrase qui relie ce morceau à l’histoire globale de l’émission.
+Architecture de chaque chronique — applique les 4 leviers :
+1. HOOK : ouvre par une scène, une affirmation surprenante, ou une tension. Pas de date sèche, pas de "c’est en 1977 que…".
+2. PERSONNAGE + ENJEU : nomme quelqu’un, montre ce qu’il risquait, ce qu’il voulait, ce qu’il a perdu ou conquis.
+3. LE FAIT QUI RESTE : un détail concret et vérifiable que l’auditeur va retenir et raconter (date, lieu, chiffre, anecdote précise).
+4. FIL TIRÉ : la dernière phrase appelle la chronique suivante — une suite, un mystère, une conséquence à venir.
 
-La chronique du titre 1 raconte l’angle en pleine lumière — c’est le cœur de l’émission.
-Les chroniques 2-6 font avancer l’arc : chacune apporte quelque chose que les autres ne peuvent pas apporter.
+La chronique du titre 1 ouvre l’enquête : elle pose la question centrale en mettant l’angle en pleine lumière, et elle fait sentir l’enjeu.
+Les chroniques 2 à 5 creusent : chacune répond à une partie de la question, en apporte une nouvelle dimension, ou la déplace.
+La chronique 6 ferme : elle résout la question ou l’ouvre sur une question plus grande.
+
+Aucune chronique ne se contente de décrire un morceau. Chacune raconte un MOMENT, avec des humains qui agissent, et un fait que personne ne raconte à la machine à café.
 
 Écris comme une voix radio qui sait couper.
 Pas comme une note de programme.
@@ -1349,7 +1391,7 @@ Dans les valeurs textuelles du JSON, n’utilise jamais le caractère guillemet 
 Ne cite pas de paroles exactes entre guillemets.
 Si tu dois rapporter une idée de paroles, paraphrase sans guillemets.
 Évite les retours à la ligne à l’intérieur des champs texte.
-Le champ "intro" est une ouverture antenne parlée de 28 à 42 mots. Elle pose la promesse de l’histoire — pas un résumé, pas une liste. Elle donne envie d’écouter. Elle peut commencer par un fait frappant, une date, une image concrète. C’est la première phrase que l’auditeur entend.
+Le champ "intro" est une ouverture antenne parlée de 28 à 42 mots. C'est le HOOK de l'émission. Elle ouvre sur la scène la plus tendue ou le fait le plus surprenant de toute l'histoire, et elle pose implicitement la QUESTION CENTRALE à laquelle l'épisode va répondre. Pas de résumé, pas de "aujourd'hui dans Sillage on parle de…", pas de liste de ce qui va suivre. L'auditeur doit être incapable de couper après ces 30 mots.
 
 Schéma :
 {
@@ -1368,18 +1410,23 @@ Schéma :
 }
 
 Auto-vérification avant de répondre :
+
 Pour l'émission entière :
-- le story type choisi correspond-il réellement à l'histoire du titre choisi ?
-- les 6 morceaux forment-ils un arc avec un début, une tension et une résolution ?
-- chaque morceau est-il irremplaçable à sa place dans le récit ?
+- le story type choisi correspond-il à la vraie histoire du titre choisi ?
+- l'intro pose-t-elle une QUESTION CENTRALE intrigante ?
+- les 6 chroniques répondent-elles progressivement à cette question ?
+- l'auditeur termine-t-il l'émission avec une réponse précise et envie d'en parler ?
 
 Pour chaque chronique :
-- contient-elle au moins un fait concret et vérifiable (date, nom, chiffre, anecdote) ?
-- fait-elle avancer l'arc — apporte-t-elle quelque chose que les autres chroniques n'apportent pas ?
-- évite-t-elle de répéter ce qui a déjà été dit dans une autre chronique ?
-- ressemble-t-elle à une vraie histoire radio, pas à une description de disque ?
+- HOOK : la première phrase crée-t-elle un manque ou une tension ?
+- PERSONNAGE : un humain est-il nommé, avec une motivation ou une réaction concrète ?
+- ENJEU : qu'est-ce que cette personne avait à perdre ou à conquérir ?
+- LE FAIT QUI RESTE : un détail vérifiable que l'auditeur retiendra et racontera ?
+- FIL TIRÉ : la dernière phrase appelle-t-elle la suivante ?
 
-Si une chronique échoue, réécris-la avant de retourner le JSON.
+Une chronique qui dit "ce morceau est important parce qu'il est émotionnel / réussi / unique" est invalide. Réécris.
+Une chronique qui décrit le son sans humain ni enjeu est invalide. Réécris.
+Une chronique qui répète une autre chronique est invalide. Réécris.
 `.trim();
 }
 
