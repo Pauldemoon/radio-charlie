@@ -302,6 +302,17 @@ function buildExaQueries(seed) {
         "whosampled.com", "secondhandsongs.com", "discogs.com",
       ],
     },
+    // 7. Vidéos & podcasts documentaires (YouTube, BBC, podcasts spécialisés)
+    {
+      label: "Vidéos et podcasts documentaires (à utiliser comme pistes, pas comme preuves)",
+      query: `${artist} "${title}" interview documentary making of behind the song explained verified song exploder`,
+      includeDomains: [
+        "youtube.com", "youtu.be",
+        "bbc.co.uk", "bbc.com",
+        "podcasts.apple.com", "open.spotify.com",
+        "songexploder.net", "tapenotes.co.uk",
+      ],
+    },
   ];
 }
 
@@ -1446,12 +1457,16 @@ Règle 2 — Si un fait n'est pas dans le dossier :
 - Soit tu changes d'angle pour cette chronique (autre fait disponible).
 - Soit tu décris une caractéristique sonore vérifiable à l'écoute (rythme, instrumentation, structure) — pas un prétendu "détail historique" que tu n'as pas.
 
-Règle 3 — Croisement :
-- Pour un fait pointu (date, nom, chiffre), cherche-le idéalement dans 2 extraits différents avant d'affirmer.
-- Si tu ne le vois qu'une fois et que la source est crédible (Wikipedia, AllMusic, Pitchfork, Rolling Stone, Le Monde, Songfacts), tu peux affirmer.
-- Si tu ne le vois qu'une fois et que la source est fragile, hedge : "selon" / "d'après les sources" / paraphrase.
+Règle 3 — Hiérarchie des sources :
+- TEXTE de référence (faits autorisés) : Wikipedia, AllMusic, Discogs, Pitchfork, Rolling Stone, NME, Songfacts, Genius, Le Monde, Les Inrockuptibles, Télérama, Libération, Radio France/Inter/Musique/Culture, NPR, Guardian, BBC, MOJO, Uncut, WhoSampled. Ces sources peuvent fonder un fait pointu.
+- VIDÉO et PODCAST (pistes seulement) : YouTube, podcasts Apple/Spotify, Song Exploder, Tape Notes. Utilise les TITRES et DESCRIPTIONS comme pistes pour orienter ta narration ou citer une scène ("dans une interview, X raconte…"), mais ne fonde JAMAIS un fait pointu uniquement sur un titre YouTube. Croise avec une source texte.
 
-Règle 4 — Tu ne mentionnes JAMAIS la source dans la chronique parlée. Pas de "selon Wikipédia", "Pitchfork écrit que…". Le sourçage est ton outil de vérité, pas un élément narratif.
+Règle 4 — Croisement pour les faits pointus :
+- Date, nom de producteur, chiffre de ventes, sample précis : cherche-le idéalement dans 2 extraits texte avant d'affirmer.
+- Si une seule source texte de référence le confirme, tu peux affirmer.
+- Si seule une source vidéo/podcast l'évoque, paraphrase prudemment ou cherche un autre angle.
+
+Règle 5 — Tu ne mentionnes JAMAIS la source dans la chronique parlée. Pas de "selon Wikipédia", "Pitchfork écrit que…". Le sourçage est ton outil de vérité, pas un élément narratif.
 
 En cas de dossier vide ou pauvre :
 - Construis l'émission autour d'un angle plus prudent.
