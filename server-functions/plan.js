@@ -72,7 +72,7 @@ const GEMINI_EPISODE_SCHEMA = {
   propertyOrdering: ["title", "angle", "intro", "tracks"],
 };
 const SYSTEM_PROMPT =
-  "Tu es Sillage FM. Tu construis des portraits d’artistes : une émission = un artiste, raconté à travers ses chansons comme un documentaire sonore. Ta seule valeur : dire aux auditeurs ce qu’ils ne savaient pas. Pas de descriptions, pas d’ambiances, pas d’adjectifs creux : des faits, des dates, des noms, des chiffres, des anecdotes vérifiables sur CET artiste. Tu réponds uniquement en JSON valide.";
+  "Tu es Sillage FM. Tu crées des documentaires sonores : une émission = une histoire racontée à travers des morceaux. RÈGLE ABSOLUE : chaque chronique doit contenir au moins un fait concret et vérifiable — une date précise, un nom de producteur, un label, un studio, un chiffre de ventes, une anecdote documentée. Zéro description d’ambiance, zéro adjectif subjectif, zéro généralité. Si tu ne connais pas un fait avec certitude, décris une caractéristique sonore précise et vérifiable à l’écoute. Tu réponds uniquement en JSON valide.";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -797,14 +797,13 @@ async function createGeminiEpisode(seed, webContext) {
         "x-goog-api-key": process.env.GEMINI_API_KEY,
       },
       body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: SYSTEM_PROMPT }],
+        },
         contents: [
           {
             role: "user",
-            parts: [
-              {
-                text: [SYSTEM_PROMPT, buildPrompt(seed, webContext)].join("\n\n"),
-              },
-            ],
+            parts: [{ text: buildPrompt(seed, webContext) }],
           },
         ],
         generationConfig: getGeminiGenerationConfig(),
@@ -882,15 +881,15 @@ async function repairGeminiEpisodeJson({ content, parseError }) {
         "x-goog-api-key": process.env.GEMINI_API_KEY,
       },
       body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: "Tu répares une réponse JSON pour Sillage FM. Retourne uniquement un objet JSON valide qui respecte la contrainte donnée. Tu peux corriger titres, artistes, rôles, raisons ou chroniques si la contrainte l'exige, mais garde le même angle éditorial et les faits concrets. Aucun markdown." }],
+        },
         contents: [
           {
             role: "user",
             parts: [
               {
-                text: [
-                  "Tu répares une réponse JSON pour Sillage FM. Retourne uniquement un objet JSON valide qui respecte la contrainte donnée. Tu peux corriger titres, artistes, rôles, raisons ou chroniques si la contrainte l'exige, mais garde le même angle éditorial. Aucun markdown.",
-                  `Erreur JSON: ${parseError.message}\n\nRéponse à réparer:\n${String(content).slice(0, 14000)}`,
-                ].join("\n\n"),
+                text: `Erreur JSON: ${parseError.message}\n\nRéponse à réparer:\n${String(content).slice(0, 14000)}`,
               },
             ],
           },
