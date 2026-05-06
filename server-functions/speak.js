@@ -1,5 +1,5 @@
 const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
-const ELEVENLABS_MODEL = process.env.ELEVENLABS_MODEL || "eleven_flash_v2_5";
+const ELEVENLABS_MODEL = process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2";
 const ELEVENLABS_LANGUAGE = process.env.ELEVENLABS_LANGUAGE || "fr";
 const ELEVENLABS_TIMEOUT_MS = numberEnv("ELEVENLABS_TIMEOUT_MS", 6500);
 const ELEVENLABS_MAX_CHARS = numberEnv("ELEVENLABS_MAX_CHARS", 750);
