@@ -247,54 +247,81 @@ function buildExaQueries(seed) {
   const albumPart = album ? ` album ${album}` : "";
 
   return [
-    // 1. Encyclopédie + crédits définitifs (Wikipedia, AllMusic, Discogs)
+    // 1. Encyclopédie + crédits définitifs + institutions
     {
-      label: "Crédits encyclopédiques",
+      label: "Crédits encyclopédiques et archives",
       query: `${artist} "${title}"${albumPart} producer studio label recording session credits release date`,
       includeDomains: [
         "en.wikipedia.org", "fr.wikipedia.org",
-        "allmusic.com", "discogs.com", "rateyourmusic.com",
+        "allmusic.com", "discogs.com", "musicbrainz.org",
+        "rateyourmusic.com", "secondhandsongs.com", "45cat.com",
+        "grammy.com", "rockhall.com", "folkways.si.edu",
       ],
     },
-    // 2. Anecdotes, coulisses, making-of (sites spécialisés)
+    // 2. Anecdotes, coulisses, making-of, archives sonores
     {
-      label: "Anecdotes et coulisses",
+      label: "Anecdotes, coulisses et histoire des sessions",
       query: `${artist} "${title}" behind the scenes anecdote story making of recording session interview oral history`,
       includeDomains: [
         "songfacts.com", "udiscovermusic.com", "faroutmagazine.co.uk",
         "loudwire.com", "ultimateclassicrock.com", "thequietus.com",
         "factmag.com", "musicradar.com", "soundonsound.com",
+        "tapeop.com", "mixonline.com", "wax-poetics.com",
+        "albumlinernotes.com", "openculture.com", "dangerousminds.net",
+        "thevinylfactory.com", "tidal.com",
       ],
     },
-    // 3. Paroles et signification (Genius)
+    // 3. Paroles et signification (Genius + analyse)
     {
-      label: "Paroles et signification",
+      label: "Paroles, signification et écriture",
       query: `${artist} "${title}" lyrics meaning analysis songwriting interpretation what is about`,
       includeDomains: [
         "genius.com", "songfacts.com", "songmeanings.com",
+        "americansongwriter.com",
       ],
     },
-    // 4. Presse anglo-saxonne de référence
+    // 4. Presse anglo-saxonne (généraliste + niches genre : hip-hop, électro, métal, jazz, indie, country)
     {
       label: "Presse musicale anglo-saxonne",
       query: `${artist} "${title}" review feature article context release impact`,
       includeDomains: [
+        // Généraliste de référence
         "pitchfork.com", "rollingstone.com", "nme.com", "stereogum.com",
         "theguardian.com", "npr.org", "mojo4music.com", "uncut.co.uk",
         "consequence.net", "billboard.com", "spin.com",
+        // Indie / alt
+        "brooklynvegan.com", "crackmagazine.net", "clashmusic.com",
+        "drownedinsound.com", "loudandquiet.com",
+        // Hip-hop
+        "hiphopdx.com", "xxlmag.com", "complex.com", "okayplayer.com",
+        // Électronique
+        "ra.co", "djmag.com", "mixmag.net", "xlr8r.com",
+        // Jazz / soul / Americana
+        "jazztimes.com", "nodepression.com", "americansongwriter.com",
+        // Métal / rock
+        "kerrang.com", "loudersound.com", "blabbermouth.net",
       ],
     },
-    // 5. Presse française et radio publique
+    // 5. Presse française et radio publique (généraliste + presse spécialisée FR rap/électro)
     {
       label: "Presse française et radio publique",
       query: `${artist} "${title}" article histoire chronique critique contexte`,
       includeDomains: [
-        "lesinrocks.com", "telerama.fr", "lemonde.fr", "liberation.fr",
+        // Quotidiens de référence
+        "lemonde.fr", "liberation.fr",
+        // Hebdos culture / mensuels musique
+        "lesinrocks.com", "telerama.fr", "tsugi.fr", "rockandfolk.com",
+        "rollingstone.fr", "magic-rpm.com", "troiscouleurs.fr",
+        // Radio publique (archives gold)
         "radiofrance.fr", "franceinter.fr", "francemusique.fr",
-        "franceculture.fr", "rfi.fr", "magic-rpm.com", "rocketc.com",
+        "franceculture.fr", "rfi.fr", "mouv.fr",
+        // Rap français (références majeures)
+        "abcdrduson.com", "booska-p.com",
+        // Sites musique généralistes FR
+        "konbini.com", "lesoreilles.com",
       ],
     },
-    // 6. Samples, reprises, héritage musical (WhoSampled, Discogs)
+    // 6. Samples, reprises, héritage musical
     {
       label: "Samples, reprises et héritage",
       query: `${artist} "${title}" samples covers references influence sampled by interpolations`,
@@ -302,15 +329,16 @@ function buildExaQueries(seed) {
         "whosampled.com", "secondhandsongs.com", "discogs.com",
       ],
     },
-    // 7. Vidéos & podcasts documentaires (YouTube, BBC, podcasts spécialisés)
+    // 7. Vidéos & podcasts documentaires
     {
-      label: "Vidéos et podcasts documentaires (à utiliser comme pistes, pas comme preuves)",
+      label: "Vidéos et podcasts documentaires (pistes, pas preuves)",
       query: `${artist} "${title}" interview documentary making of behind the song explained verified song exploder`,
       includeDomains: [
         "youtube.com", "youtu.be",
         "bbc.co.uk", "bbc.com",
         "podcasts.apple.com", "open.spotify.com",
         "songexploder.net", "tapenotes.co.uk",
+        "kcrw.com", "kexp.org", "wfmu.org",
       ],
     },
   ];
