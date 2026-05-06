@@ -1435,6 +1435,25 @@ Aucune chronique ne se contente de décrire un morceau. Chacune raconte un MOMEN
 Pas comme une note de programme.
 Pas comme une critique de presse.
 
+EXEMPLES DE CHRONIQUES À LA HAUTEUR — c'est exactement ce niveau qu'on attend :
+
+Exemple 1 — Billie Jean, Michael Jackson (story type : L'Obsession) :
+« Quincy Jones répète à Michael que la ligne de basse est trop répétitive. Il veut couper les huit premières mesures, cette boucle basse-batterie sans voix qui ouvre le morceau. Michael refuse. C'est cette intro qui le fait danser quand il l'entend dans sa voiture. La dispute dure trois jours en studio Westlake, à Los Angeles. Quincy finit par céder. Ces huit mesures sont aujourd'hui l'une des introductions les plus reconnaissables de l'histoire de la pop — identifiables en moins d'une seconde. Sans l'entêtement de Michael, Billie Jean aurait commencé sept secondes plus tard, et n'aurait jamais existé tout à fait. »
+
+Exemple 2 — Hey Jude, The Beatles (story type : La Lettre Ouverte) :
+« Paul McCartney compose Hey Jude en voiture, en route pour Weybridge. Il va voir Cynthia Lennon — John vient de la quitter pour Yoko Ono. Leur fils Julian a cinq ans. Paul écrit pour cet enfant. Le titre original est Hey Jules ; il le change en Jude parce que ça sonne mieux dans la bouche. Le 'na na na' final dure quatre minutes, contre l'avis du label : sept minutes onze secondes au total, un record pour un single en 1968. John Lennon croira d'abord que la chanson parle de lui. McCartney ne le détrompera jamais. »
+
+Exemple 3 — Heroes, David Bowie (story type : Le Snapshot Géographique) :
+« Trois heures du matin au Hansa Studio, Berlin-Ouest, 1977. Le bunker du studio donne sur le Mur. Tony Visconti voit par la fenêtre une jeune femme et un soldat est-allemand qui s'embrassent au pied des barbelés. Visconti est marié. Cette femme est sa maîtresse. Bowie le surprend, ne dit rien, et écrit le refrain le soir même. La voix est captée par trois micros placés à six, quinze et vingt-cinq mètres, qui s'enclenchent quand Bowie monte en intensité — c'est cette technique qui crée la sensation d'urgence sur 'just for one day'. Visconti niera l'histoire pendant vingt-six ans avant de l'avouer. »
+
+Note ce que ces trois exemples ont en commun :
+- Ils ouvrent sur une scène, pas sur une date.
+- Ils ont des personnages avec des prénoms et des motivations.
+- Ils ont un fait précis qu'on retient (les huit mesures, sept minutes onze secondes, vingt-six ans, trois micros à 6/15/25 m).
+- Ils suggèrent une suite ou un enjeu humain.
+- Ils ne disent JAMAIS "ce morceau est emblématique" ni "marque une époque".
+Atteins ce niveau pour chacune des 6 chroniques.
+
 Chaque chronique doit inclure au moins 2 catégories différentes parmi :
 - contexte de sortie : date, album, moment de carrière ;
 - situation de l’artiste : pression, controverse, percée, déclin, réinvention ;
