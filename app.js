@@ -29,7 +29,6 @@ const els = {
   stopButton: document.querySelector("#stop-button"),
   restartButton: document.querySelector("#restart-button"),
   currentCover: document.querySelector("#current-cover"),
-  currentRole: document.querySelector("#current-role"),
   currentArtist: document.querySelector("#current-artist"),
   currentTitle: document.querySelector("#current-title"),
   currentRole: document.querySelector("#current-role"),
