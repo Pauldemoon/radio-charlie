@@ -2,17 +2,9 @@ const DEEZER_SEARCH_URL = "https://api.deezer.com/search";
 const SPEECH_TIMEOUT_MS = 20000;
 const BROWSER_SPEECH_RATE = 1.12;
 const MAX_SPOKEN_WORDS = 130;
+const LOADING_STATUS = "Recherche en cours.";
 const FALLBACK_COVER =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Crect width='600' height='600' fill='%23020817'/%3E%3Ccircle cx='300' cy='300' r='190' fill='%23f2b51d' fill-opacity='.16'/%3E%3Ccircle cx='300' cy='300' r='78' fill='%23f2b51d' fill-opacity='.42'/%3E%3C/svg%3E";
-
-const loadingMessages = [
-  "Sillage prépare l’émission…",
-  "Plongée dans les sources : AllMusic, Pitchfork, Songfacts…",
-  "Recoupement des faits, vérification des dates…",
-  "Construction de l’arc narratif…",
-  "Vérification des morceaux sur Deezer…",
-  "Écriture de la voix antenne…",
-];
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Crect width='600' height='600' fill='%23050403'/%3E%3Ccircle cx='300' cy='300' r='190' fill='%23ffb34d' fill-opacity='.16'/%3E%3Ccircle cx='300' cy='300' r='78' fill='%237ed8cb' fill-opacity='.34'/%3E%3C/svg%3E";
 
 const els = {
   homeScreen: document.querySelector("#home-screen"),
@@ -189,7 +181,7 @@ async function startEpisode(seedTrack) {
 
     if (!isCurrentRun(runId)) return;
 
-    setLoadingMessage("Sélection des extraits…");
+    setLoadingMessage(LOADING_STATUS);
     const playableTracks = await enrichWithDeezer(episode.tracks);
 
     if (!isCurrentRun(runId)) return;
@@ -887,13 +879,8 @@ function setLoadingMessage(message) {
 }
 
 function startLoadingMessages() {
-  let index = 0;
-  setLoadingMessage(loadingMessages[index]);
+  setLoadingMessage(LOADING_STATUS);
   stopLoadingMessages();
-  state.loadingTimer = window.setInterval(() => {
-    index = (index + 1) % loadingMessages.length;
-    setLoadingMessage(loadingMessages[index]);
-  }, 1400);
 }
 
 function stopLoadingMessages() {

@@ -39,27 +39,16 @@
       </section>
 
       <section id="loading-screen" class="screen loading-screen" aria-label="Chargement">
-        <p class="brand-logo brand-logo--status" aria-label="Sillage FM">
-          <img class="brand-logo-image" src="./assets/sillage-logo.png" alt="Sillage FM">
-        </p>
-        <div class="fm-tuner" aria-hidden="true">
-          <div class="fm-band">
-            <span class="fm-glow"></span>
-            <span class="fm-needle"></span>
-            <div class="fm-scale">
-              <span>88</span>
-              <span>92</span>
-              <span>96</span>
-              <span>100</span>
-              <span>104</span>
-              <span>108</span>
-            </div>
-          </div>
+        <div class="fm-loader" role="status" aria-live="polite" aria-label="Sillage FM cherche">
+          <span class="fm-loader__letters">FM</span>
+          <span class="fm-loader__needle" aria-hidden="true"></span>
+          <span class="fm-loader__wave fm-loader__wave--one" aria-hidden="true"></span>
+          <span class="fm-loader__wave fm-loader__wave--two" aria-hidden="true"></span>
+          <span class="fm-loader__wave fm-loader__wave--three" aria-hidden="true"></span>
         </div>
-        <p id="loading-message" class="loading-message" role="status" aria-live="polite">
-          Création du podcast en cours…
+        <p id="loading-message" class="loading-message sr-only" role="status" aria-live="polite">
+          Recherche en cours.
         </p>
-        <p id="loading-step" class="loading-step" aria-live="polite"></p>
       </section>
 
       <section id="radio-screen" class="screen radio-screen" aria-label="Podcast">
