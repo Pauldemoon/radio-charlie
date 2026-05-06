@@ -138,12 +138,41 @@ async function createAiEpisode(seed) {
 
   const webContext = await createEditorialWebContext(seed);
 
-  if (provider === "deepseek") return createDeepSeekEpisode(seed, webContext);
-  if (provider === "openai") return createOpenAiEpisode(seed, webContext);
-  if (provider === "claude") return createClaudeEpisode(seed, webContext);
-  if (provider === "gemini") return createGeminiEpisode(seed, webContext);
+  return retryOnOverload(async () => {
+    if (provider === "deepseek") return createDeepSeekEpisode(seed, webContext);
+    if (provider === "openai") return createOpenAiEpisode(seed, webContext);
+    if (provider === "claude") return createClaudeEpisode(seed, webContext);
+    if (provider === "gemini") return createGeminiEpisode(seed, webContext);
+    throw new Error(`Fournisseur IA inconnu : ${provider}.`);
+  });
+}
 
-  throw new Error(`Fournisseur IA inconnu : ${provider}.`);
+async function retryOnOverload(fn, maxAttempts = 3) {
+  let lastError;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const msg = String(error?.message || "").toLowerCase();
+      const isOverloaded =
+        msg.includes("overloaded") ||
+        msg.includes("529") ||
+        msg.includes("503") ||
+        msg.includes("high demand") ||
+        msg.includes("capacity");
+
+      if (isOverloaded && attempt < maxAttempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, (attempt + 1) * 3000));
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw lastError;
 }
 
 async function createEditorialWebContext(seed) {
