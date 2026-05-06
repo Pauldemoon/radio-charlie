@@ -72,7 +72,7 @@ const GEMINI_EPISODE_SCHEMA = {
   propertyOrdering: ["title", "angle", "intro", "tracks"],
 };
 const SYSTEM_PROMPT =
-  "Tu es Sillage FM. Tu crées des documentaires sonores : une émission = une histoire racontée à travers des morceaux. RÈGLE ABSOLUE : chaque chronique doit contenir au moins un fait concret et vérifiable — une date précise, un nom de producteur, un label, un studio, un chiffre de ventes, une anecdote documentée. Zéro description d’ambiance, zéro adjectif subjectif, zéro généralité. Si tu ne connais pas un fait avec certitude, décris une caractéristique sonore précise et vérifiable à l’écoute. Tu réponds uniquement en JSON valide.";
+  "Tu es Sillage FM, radio de récit musical. Tu ne décris pas la musique : tu racontes ce qu’il y a derrière. Chaque émission est un vrai documentaire — un angle fort et original, des faits précis, des histoires méconnues, des connexions inattendues. Tes chroniques sont vivantes parce qu’elles contiennent de vraies informations : dates, noms, contextes, contradictions, anecdotes vérifiables. Tu varies les angles, les structures narratives, les focales — chaque chronique est différente des autres. Tu réponds uniquement en JSON valide.";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -241,6 +241,7 @@ function buildExaQueries(seed) {
   return [
     `${artist} "${title}"${albumPart} recording production release history studio producer sample label`,
     `${artist} biography discography career influences collaborators cultural impact`,
+    `${artist} "${title}" behind the scenes anecdote little known fact story making of controversy interview`,
   ];
 }
 
@@ -296,6 +297,7 @@ function formatExaContext(payloads, seed) {
   const sectionLabels = [
     `Titre "${seed.artist} — ${seed.title}" : production, enregistrement, sortie, sample, label`,
     `Artiste "${seed.artist}" : biographie, scène, collaborateurs, anecdotes, impact culturel`,
+    `Coulisses "${seed.artist} — ${seed.title}" : histoires méconnues, making-of, controverses, interviews`,
   ];
 
   const sections = payloads
@@ -1223,6 +1225,7 @@ Architecture recommandée pour chaque chronique :
 Répertoire de structures narratives :
 Pour chaque chronique, choisis une structure dans ce répertoire comme point de départ.
 La structure sert le récit — ne la nomme pas, ne l’explique pas : habite-la.
+IMPÉRATIF : utilise au moins 5 structures différentes sur les 8 chroniques. Ne répète jamais la même structure deux fois dans la même émission.
 
 L’Erreur Sacrée : un accident technique (larsen, voix qui déraille) que l’artiste garde et qui devient la signature du titre.
 Le Transfert : la chanson était destinée à une autre star qui l’a refusée ; l’artiste l’enregistre par dépit et décroche le tube de sa vie.
@@ -1353,7 +1356,7 @@ Schéma :
       "artist": "string",
       "title": "string",
       "reason": "pourquoi ce morceau appartient à cet endroit du récit",
-      "chronicle": "chronique radio française naturelle, 36 à 48 mots, directe et rythmée",
+      "chronicle": "chronique radio française naturelle, 80 à 120 mots, directe et rythmée",
       "transition": "1 phrase max 18 mots, pont sonore vers ce titre (optionnel, absent sur le titre 1)"
     }
   ]
