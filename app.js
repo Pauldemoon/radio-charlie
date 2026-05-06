@@ -32,6 +32,7 @@ const els = {
   currentRole: document.querySelector("#current-role"),
   currentArtist: document.querySelector("#current-artist"),
   currentTitle: document.querySelector("#current-title"),
+  currentRole: document.querySelector("#current-role"),
   currentLink: document.querySelector("#current-link"),
   playbackState: document.querySelector("#playback-state"),
   progress: document.querySelector("#progress"),
@@ -782,6 +783,7 @@ function updateCurrentTrack(track, index, total) {
   els.currentCover.alt = `Pochette de ${track.title}`;
   els.currentArtist.textContent = track.artist;
   els.currentTitle.textContent = track.title;
+  els.currentRole.textContent = getRoleLabel(getTrackRole(track, index));
 
   if (track.link) {
     els.currentLink.href = track.link;
